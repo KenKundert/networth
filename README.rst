@@ -169,7 +169,7 @@ units). Here are some examples::
 
     class TD_Ameritrade(Account):
         ...
-        estimated_value = dict(updated='January 2019', GOOG=100, AMZN=45, cash=327.53)
+        estimated_value = dict(updated='January 2019', GOOG=10, AMZN=5, cash=327.53)
 
 The value of securities are given is number of shares. The value given for 
 cryptocurrencies is number of tokens. All other values are assumed to be in 
