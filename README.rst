@@ -200,7 +200,8 @@ default profile.  For example::
 
 In this run, the values associated with the various asset classes (ex. equities, 
 cash, retirement, etc.) are taken as is. As such, you must be diligent about 
-keeping these values up to date, which is a manual operation. However the 
-current prices for your configured securities and cryptocurrencies are 
-downloaded and multiplied by the given number of shares or tokens to get the 
-up-to-date values of your equities and cryptocurrency holdings.
+keeping these values up to date, which is a manual operation. You might consider 
+updating your *estimated values* every 3-6 months.  However the current prices 
+for your configured securities and cryptocurrencies are downloaded and 
+multiplied by the given number of shares or tokens to get the up-to-date values 
+of your equities and cryptocurrency holdings.
