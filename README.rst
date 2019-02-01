@@ -6,8 +6,8 @@ Networth: Summarize Your Networth
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
-a summary of your networth. *Networth* reads *estimated_value* fields from 
-*Avendesora* accounts and summarized the result.  It is often used with 
+generate a summary of your networth. *Networth* reads *estimated_value* fields 
+from *Avendesora* accounts and summarizes the result.  It is often used with 
 `PostMortem <https://postmortem.readthedocs.io>`_.
 
 Please report all bugs and suggestions to networth@nurdletech.com
@@ -172,6 +172,11 @@ units). Here are some examples::
         ...
         estimated_value = dict(updated='January 2019', QCOM=100, TXN=45, cash=327.53)
 
+The value of securities are given is number of shares. The value given for 
+cryptocurrencies is number of tokens. All other values are assumed to be in 
+dollars if the units are not given. If the units are given and they are not 
+dollars (such as miles for frequent flyer programs), then those values are 
+summarized but not included in your total networth.
 
 Usage
 -----
@@ -193,3 +198,10 @@ default profile.  For example::
             retirement:     $9k (20.8%) ███████████████████████████
 
                  TOTAL:  $43.3k (assets = $43.3k, debt = $0)
+
+In this run, the values associated with the various asset classes (ex. equities, 
+cash, retirement, etc.) are taken as is. As such, you must be diligent about 
+keeping these values up to date, which is a manual operation. However the 
+current prices for your configured securities and cryptocurrencies are 
+downloaded and multiplied by the given number of shares or tokens to get the 
+up-to-date values of your equities and cryptocurrency holdings.
