@@ -116,6 +116,7 @@ Here is an example *config* file::
     profile_names = 'me parents'.split()
 
     # account value settings
+    avendesora_fieldname = 'estimated_value'
     value_updated_subfieldname = 'updated'
     max_account_value_age = 120 # days
     date_formats = 'MMMM YYYY'
@@ -125,9 +126,7 @@ Here is an example *config* file::
 
 Here is a example profile file::
 
-    # account value settings
-    avendesora_fieldname = 'estimated_value'
-
+    # account aliases
     aliases = dict(
         quickenloans = 'mortgage',
         wellsfargo = 'wells fargo',
@@ -135,7 +134,7 @@ Here is a example profile file::
 
     # available symbols
     coins = 'USD BTC ETH BCH ZEC EOS'.split()
-    securities = 'QCOM TXN'.split()
+    securities = 'GOOG AMZN'.split()
 
 
 Estimated Values
@@ -170,7 +169,7 @@ units). Here are some examples::
 
     class TD_Ameritrade(Account):
         ...
-        estimated_value = dict(updated='January 2019', QCOM=100, TXN=45, cash=327.53)
+        estimated_value = dict(updated='January 2019', GOOG=100, AMZN=45, cash=327.53)
 
 The value of securities are given is number of shares. The value given for 
 cryptocurrencies is number of tokens. All other values are assumed to be in 
