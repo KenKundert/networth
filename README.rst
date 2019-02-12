@@ -1,5 +1,5 @@
-Networth: Summarize Your Networth
-=================================
+Networth: Summarize Your Net Worth
+==================================
 
 | Version: 0.0.0
 | Released: 2019-01-31
