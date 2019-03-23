@@ -63,8 +63,13 @@ max_account_value_age:
 
 date_formats:
 
-    A string that contains the expected date format of the *updated* subfield in 
-    Arrow form.
+    A string that contains the allowed date formats separated by white space.  
+    Any spaces is a specific format is replaced by an underscore so that it is 
+    not confused as more than one format. For example a format of 'MMMM YYYY' 
+    would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
+    by Arror.
+
+    May also be a list of strings, where each represents a valid date format.  
 
 asset_color:
 
@@ -229,4 +234,24 @@ keeping these values up to date, which is a manual operation. You might consider
 updating your *estimated values* every 3-6 months.  However the current prices 
 for your configured securities and cryptocurrencies are downloaded and 
 multiplied by the given number of shares or tokens to get the up-to-date values 
-of your equities and cryptocurrency holdings.
+of your equities and cryptocurrency holdings. Thus you only need update them 
+after a transaction. Finally, mortgage balances are also kept up to date. You 
+only need update mortgages if you decide to change the payment amount in order 
+to pay off the loan faster.
+
+
+Releases
+--------
+**Latest Development Version**:
+    | Version: 0.1.0
+    | Released: 2019-03-23
+    - Allow arbitrary date format in mortgages
+    - Improve error reporting
+
+**0.1 (2019-03-23)**:
+    - Initial release
+    - Add mortgage balance calculations
+
+**0.0 (2019-01-31)**:
+    - Initial version
+
