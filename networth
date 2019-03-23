@@ -64,6 +64,9 @@ from quantiphy import Quantity, InvalidNumber
 from pathlib import Path
 import arrow
 
+__version__ = "0.2.0"
+__released__ = "2019-03-23"
+
 # Settings {{{1
 # These can be overridden in ~/.config/networth/config
 prog_name = 'networth'
@@ -95,6 +98,8 @@ debt_color = 'red'
 # date settings {{{2
 date_formats = [
     'MMMM YYYY',
+    'MMM YYYY',
+    'YYYY-M-D',
     'YYMMDD',
 ]
 max_account_value_age = 120  # days

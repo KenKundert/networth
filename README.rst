@@ -71,6 +71,10 @@ date_formats:
 
     May also be a list of strings, where each represents a valid date format.  
 
+    By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
+    'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
+    2019', 'Jan 2019', '2019-1-1' and '190101'.
+
 asset_color:
 
     The color to used for positive values. May be black, white, blue, cyan, 
