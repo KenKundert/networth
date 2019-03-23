@@ -141,11 +141,11 @@ Estimated Values
 ----------------
 
 Next, you need to add *estimated_value* fields to your *Avendesora* accounts, 
-the value of which is a dictionary. At a minimum, it should contain a *updated* 
-subfield that contains the date the value was last updated.  In addition, it may 
-contain subfields for various asset classes or coins or securities.  The values 
-may either be real numbers or strings that contain quantities (values plus 
-units). Here are some examples::
+the value of which is a dictionary. It may contain a *updated* subfield that 
+gives the date the value was last updated.  In addition, it may contain 
+subfields for various asset classes or coins or securities.  The values may 
+either be real numbers or strings that contain quantities (values plus units).  
+Here are some examples::
 
     class ChaseBank(Account):
         ...
@@ -176,6 +176,31 @@ cryptocurrencies is number of tokens. All other values are assumed to be in
 dollars if the units are not given. If the units are given and they are not 
 dollars (such as miles for frequent flyer programs), then those values are 
 summarized but not included in your total networth.
+
+Specifying the *updated* date is optional. If specified, then *networth* will 
+indicate the values as stale if they exceed *max_account_value_age*.
+
+It is also specify information about a loan, and *networth* will compute its 
+current balance.  This is done by giving the principal on a particular date, the 
+date for the given principal, the monthly payments, the interest rate, and 
+optionally, the share. The rate and the share can be given in percent, meaning 
+that an rate of 4% can either be specified as 4% or as 0.04. Similarly a share 
+half share can be indicated as 50% or 0.5.  For example:
+
+    class QuickenLoans(Account):
+        ...
+        estimated_value = dict(
+            real_estate = '''
+                principal=$294,058
+                date=09/04/2013
+                payment=$1,500.00
+                rate=4.375%
+            '''
+        )
+
+the key=value pairs can be separated by any white space, but there must be no
+white space surrounding the = sign.
+
 
 Usage
 -----

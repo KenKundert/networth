@@ -59,7 +59,7 @@ from inform import (
     render_bar, terminate, warn, Color, Error, Inform,
 )
 from operator import itemgetter
-from quantiphy import Quantity
+from quantiphy import Quantity, InvalidNumber
 from pathlib import Path
 import arrow
 
@@ -123,7 +123,44 @@ def colorize(value, text = None):
 
 # colored bar {{{2
 def colored_bar(value, width):
-    return colorize(value, render_bar(value, width))
+    return colorize(value, render_bar(abs(value), width))
+
+# mortgage_balance {{{2
+def mortgage_balance(description):
+    try:
+        params = dict(pair.split('=') for pair in description.split())
+        principal = Quantity(params['principal'])
+                                 # the principal
+        start = arrow.get(params['date'], 'MM/DD/YYYY')
+                                 # date for which principal was specified
+        payment = Quantity(params['payment'])
+                                 # the monthly payment
+        interest = Quantity(params['rate'])
+                                 # the interest rate in percent
+        interest = interest/100 if interest.units == '%' else interest
+        if 'share' in params:    # share of the loan that is mine (optional)
+            share = Quantity(params['share'], '%')
+            share = share/100 if share.units == '%' else share
+            principal *= share
+            payment *= share
+
+        # useful values
+        rate = interest/12       # the rate of growth per month
+        unit_growth = 1 + rate   # the normalized growth per month
+        now = arrow.now()        # the current date
+        months = (now.year - start.year) * 12 + now.month - start.month
+                                 # periods since the date of the principal
+
+        # number of months until payoff
+        #from math import log
+        #periods_to_payoff = -(log(1 - principal*rate/payment))/log(unit_growth)
+        #periods_to_payoff = Quantity(periods_to_payoff, units='months')
+
+        # current balance
+        balance = (payment + unit_growth**months*(rate*principal - payment))/rate
+        return Quantity(-balance, units='$')
+    except (AttributeError, KeyError, ValueError):
+        raise Error('invalid mortgage description')
 
 try:
     # Initialization {{{1
@@ -330,7 +367,16 @@ try:
                 value = Quantity(v*security_prices[k], security_prices[k])
                 k = 'equities'
             else:
-                value = Quantity(v, '$')
+                try:
+                    value = mortgage_balance(v)
+                except Error as err:
+                    try:
+                        value = Quantity(v, '$')
+                    except InvalidNumber as e:
+                        raise Error(
+                            str(e),
+                            culprit=(account_name, avendesora_fieldname, k)
+                        )
             if value.units == '$':
                 total = total.add(value)
             else:
@@ -342,7 +388,7 @@ try:
 
         # generate the account summary {{{2
         age = get_age(data.get(value_updated_subfieldname), account_name)
-        if show_updated:
+        if show_updated and updated:
             desc = updated
         else:
             desc = ', '.join('{}={}'.format(k, v) for k, v in contents.items() if v)
@@ -370,7 +416,7 @@ try:
 
     # Summarize by investment type {{{1
     display('\nBy Type:')
-    largest_share = max(v for v in totals.values() if v.units == '$')
+    largest_share = max(abs(v) for v in totals.values() if v.units == '$')
     barwidth = screen_width - width - 18
     for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
         value = totals[asset_type]
