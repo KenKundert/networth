@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.0.0
-| Released: 2019-01-31
+| Version: 0.1.0
+| Released: 2019-03-23
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
