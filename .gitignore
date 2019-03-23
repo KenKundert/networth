@@ -1,1 +1,4 @@
 .bump.cfg
+dist
+networth.egg-info
+

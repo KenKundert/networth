@@ -185,7 +185,7 @@ current balance.  This is done by giving the principal on a particular date, the
 date for the given principal, the monthly payments, the interest rate, and 
 optionally, the share. The rate and the share can be given in percent, meaning 
 that an rate of 4% can either be specified as 4% or as 0.04. Similarly a share 
-half share can be indicated as 50% or 0.5.  For example:
+half share can be indicated as 50% or 0.5.  For example::
 
     class QuickenLoans(Account):
         ...
