@@ -7,8 +7,8 @@ Networth: Summarize Your Net Worth
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
 generate a summary of your networth. *Networth* reads *estimated_value* fields 
-from *Avendesora* accounts and summarizes the result.  It is often used with 
-`PostMortem <https://postmortem.readthedocs.io>`_.
+from *Avendesora* accounts and summarizes the result.  It is often used with, 
+and shares fields with, `PostMortem <https://postmortem.readthedocs.io>`_.
 
 Please report all bugs and suggestions to networth@nurdletech.com
 
@@ -17,7 +17,6 @@ Getting Started
 
 You download and install *Networth* with::
 
-    git clone https://github.com/KenKundert/networth.git
     pip3 install --user networth
 
 Once installed, you will need at least two configuration files. The 
