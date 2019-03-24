@@ -29,90 +29,89 @@ are monitoring.
 In general, any setting may be in either the config file or the profile file.  
 However, the following two settings should in the config file:
 
-default_profile:
+**default_profile**
 
-    A string that contains the name of the profile to use if the one is not 
-    explicitly specified on the command line.  The name specified in this 
-    setting must also be one of the names specified in *profile_names*.
+A string that contains the name of the profile to use if the one is not 
+explicitly specified on the command line.  The name specified in this setting 
+must also be one of the names specified in *profile_names*.
 
-profile_names:
+**profile_names**
 
-    A list the contains the names of the known profiles.  For every name given 
-    there should be a profile file in the settings directory. Thus, if *me* is 
-    one of the profile names, then there should be a file 
-    ~/.config/networth/me.prof that contains the settings associated to the *me* 
-    profile.
+A list the contains the names of the known profiles.  For every name given there 
+should be a profile file in the settings directory. Thus, if *me* is one of the 
+profile names, then there should be a file ~/.config/networth/me.prof that 
+contains the settings associated to the *me* profile.
 
 In addition, the following settings are available:
 
-avendesora_fieldname:
+**avendesora_fieldname**
 
-    The name of the *Avendesora* account field that contains the networth 
-    information.
+The name of the *Avendesora* account field that contains the networth 
+information.
 
-value_updated_subfieldname:
+**value_updated_subfieldname**
 
-    The name of the subfield of *estimated_value* that contains the date the 
-    value was last updated.  Typically *updated*.
+The name of the subfield of *estimated_value* that contains the date the 
+value was last updated.  Typically *updated*.
 
-max_account_value_age:
+**max_account_value_age**
 
-    Number of days. Values that are older than this are called out as being 
-    stale.
+Number of days. Values that are older than this are called out as being 
+stale.
 
-date_formats:
+**date_formats**
 
-    A string that contains the allowed date formats separated by white space.  
-    Any spaces is a specific format is replaced by an underscore so that it is 
-    not confused as more than one format. For example a format of 'MMMM YYYY' 
-    would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
-    by Arror.
+A string that contains the allowed date formats separated by white space.  
+Any spaces is a specific format is replaced by an underscore so that it is 
+not confused as more than one format. For example a format of 'MMMM YYYY' 
+would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
+by Arrow.
 
-    May also be a list of strings, where each represents a valid date format.  
+May also be a list of strings, where each represents a valid date format.  
 
-    By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
-    'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
-    2019', 'Jan 2019', '2019-1-1' and '190101'.
+By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
+'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
+2019', 'Jan 2019', '2019-1-1' and '190101'.
 
-asset_color:
+**asset_color**
 
-    The color to used for positive values. May be black, white, blue, cyan, 
-    green, red, magenta, or yellow. The default is green.
+The color to used for positive values. May be black, white, blue, cyan, 
+green, red, magenta, or yellow. The default is green.
 
-debt_color:
+**debt_color**
 
-    The color to used for negative values. May be black, white, blue, cyan, 
-    green, red, magenta, or yellow. The default is red.
+The color to used for negative values. May be black, white, blue, cyan, 
+green, red, magenta, or yellow. The default is red.
 
-screen_width:
+**screen_width**
 
-    An integer that contains the width of the screen.
+An integer that contains the width of the screen.
 
-aliases:
+**aliases**
 
-    A dictionary that is used to map an account name to something that is easier 
-    to read.
+A dictionary that is used to map an account name to something that is easier 
+to read.
 
-coins:
+**coins**
 
-    A list of crytpocurrency tokens that should be available for use.
+A list of crytpocurrency tokens that should be available for use.
 
-coin_prices_filename:
+**coin_prices_filename**
 
-    Name of the file used as the cryptocurrency price cache.
+Name of the file used as the cryptocurrency price cache.
 
-securities:
+**securities**
 
-    A list of security symbols that should be available for use.
+A list of security symbols that should be available for use.
 
-security_prices_filename:
+**security_prices_filename**
 
-    Name of the file used as the security price cache.
+Name of the file used as the security price cache.
 
-max_price_age:
+**max_price_age**
 
-    Maximum age in seconds of the price caches. If the prices are older than 
-    this, the cache is flushed and the prices are updated.
+Maximum age in seconds of the price caches. If the prices are older than 
+this, the cache is flushed and the prices are updated.
 
 
 Example Configuration Files
