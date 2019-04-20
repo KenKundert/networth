@@ -163,14 +163,11 @@ def mortgage_balance(description):
         now = arrow.now()        # the current date
         months = (now.year - start.year) * 12 + now.month - start.month
                                  # periods since the date of the principal
-
-        # number of months until payoff
-        #periods_to_payoff = -(log(1 - principal*rate/payment))/log(unit_growth)
-        #periods_to_payoff = Quantity(periods_to_payoff, units='months')
+        growth = unit_growth**months
 
         # current balance
-        balance = (payment + unit_growth**months*(rate*principal - payment))/rate
-        return Quantity(-balance, units='$')
+        balance = principal*growth + payment*(growth - 1)/rate
+        return Quantity(balance, units='$')
     except (AttributeError, KeyError, ValueError) as e:
         raise Error('invalid mortgage description', unrecognized=True)
 

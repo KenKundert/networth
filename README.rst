@@ -181,7 +181,7 @@ Here are some examples::
 The value of securities are given is number of shares. The value given for 
 cryptocurrencies is number of tokens. All other values are assumed to be in 
 dollars if the units are not given. If the units are given and they are not 
-dollars (such as miles for frequent flyer programs), then those values are 
+dollars (such as miles for frequent flier programs), then those values are 
 summarized but not included in your total networth.
 
 Specifying the *updated* date is optional. If specified, then *networth* will 
@@ -198,15 +198,20 @@ half share can be indicated as 50% or 0.5.  For example::
         ...
         estimated_value = dict(
             real_estate = '''
-                principal=$294,058
+                principal=-$294,058
                 date=09/04/2013
                 payment=$1,500.00
                 rate=4.375%
+                share=50%
             '''
         )
 
 the key=value pairs can be separated by any white space, but there must be no
-white space surrounding the = sign.
+white space surrounding the = sign. For mortgages that you owe, the principal 
+should be negative. You can also use this feature to describe an automatic 
+savings plan into an interest bearing account.  In this case the principal would 
+be your starting balance and the payment would be your monthly investment 
+amount.  In this case the starting balance would be positive.
 
 
 Usage
