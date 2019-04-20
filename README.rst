@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.2.0
-| Released: 2019-03-23
+| Version: 0.2.1
+| Released: 2019-04-20
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
@@ -250,8 +250,8 @@ to pay off the loan faster.
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.2.0
-    | Released: 2019-03-23
+    | Version: 0.2.1
+    | Released: 2019-04-20
     - Allow arbitrary date format in mortgages
     - Improve error reporting
 
