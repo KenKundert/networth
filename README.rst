@@ -1,7 +1,7 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.2.1
+| Version: 0.3.0
 | Released: 2019-04-20
 |
 
@@ -250,7 +250,7 @@ to pay off the loan faster.
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.2.1
+    | Version: 0.3.0
     | Released: 2019-04-20
 
 **0.3 (2019-04-20)**:
