@@ -252,8 +252,11 @@ Releases
 **Latest Development Version**:
     | Version: 0.2.1
     | Released: 2019-04-20
+
+**0.3 (2019-04-20)**:
     - Allow arbitrary date format in mortgages
     - Improve error reporting
+    - Change the sign of the principal in mortgages
 
 **0.1 (2019-03-23)**:
     - Initial release
