@@ -7,7 +7,7 @@ with open('README.rst') as file:
 
 setup(
     name = 'networth',
-    version = '0.3.0',
+    version = '0.4.0',
     author = 'Ken Kundert',
     author_email = 'networth@nurdletech.com',
     description = 'Summarize net worth',
