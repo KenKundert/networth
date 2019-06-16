@@ -262,6 +262,8 @@ Releases
 **Latest Development Version**:
     | Version: 0.3.0
     | Released: 2019-04-20
+
+**0.4 (2019-06-15)**:
     - Convert to using new IEXcloud API for downloading security prices.
 
 **0.3 (2019-04-20)**:
