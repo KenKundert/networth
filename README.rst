@@ -108,6 +108,13 @@ A list of security symbols that should be available for use.
 
 Name of the file used as the security price cache.
 
+**iexcloud_token**
+
+The security prices are downloaded from the IEXcloud. You must sign up with them 
+to use this service. The free account is more than sufficient for your needs.  
+Once you sign up you can get an API token, which you give as the value for this 
+field.  This field must be given if you specify securities.
+
 **max_price_age**
 
 Maximum age in seconds of the price caches. If the prices are older than 
@@ -130,6 +137,9 @@ Here is an example *config* file::
 
     # bar settings
     screen_width = 110
+
+    # API token needed to download securities
+    iexcloud_token = 'pk_9eb3acfc7dbe4055a795ff179d46a980'
 
 Here is a example profile file::
 
@@ -252,6 +262,7 @@ Releases
 **Latest Development Version**:
     | Version: 0.3.0
     | Released: 2019-04-20
+    - Convert to using new IEXcloud API for downloading security prices.
 
 **0.3 (2019-04-20)**:
     - Allow arbitrary date format in mortgages

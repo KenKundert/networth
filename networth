@@ -64,7 +64,7 @@ from quantiphy import Quantity, InvalidNumber
 from pathlib import Path
 import arrow
 
-__version__ = "0.3.0"
+__version__ = "0.2.1"
 __released__ = "2019-04-20"
 
 # Settings {{{1
@@ -84,7 +84,7 @@ coin_prices_filename = 'coins'
 security_prices_filename = 'securities'
 coins = None
 securities = None
-max_price_age = 86400  # refresh cache if older than this (seconds)
+max_price_age = 600  # refresh cache if older than this (seconds)
 
 # bar settings {{{2
 screen_width = 79
@@ -233,106 +233,120 @@ try:
     debt_color = Color(debt_color, enable=Color.isTTY())
 
     # Get cryptocurrency prices {{{1
-    if coins:
-        import requests
-
-        cache_valid = False
-        cache_dir = Path(cache_dir)
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        prices_cache = Path(cache_dir, coin_prices_filename)
-        if prices_cache and prices_cache.exists():
-            now = arrow.now()
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < max_price_age
-        if cache_valid:
-            contents = prices_cache.read_text()
-            coin_prices = Quantity.extract(contents)
-            narrate('coin prices are current:', prices_cache)
-        else:
-            narrate('updating coin prices')
-            # download latest asset prices from cryptocompare.com
-            currencies = dict(
-                fsyms=','.join(coins),     # from symbols
-                tsyms='USD',               # to symbols
-            )
-            url_args = '&'.join(f'{k}={v}' for k, v in currencies.items())
-            base_url = 'https://min-api.cryptocompare.com/data/pricemulti'
-            url = '?'.join([base_url, url_args])
-            try:
-                r = requests.get(url, proxies=proxy)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('cannot access cryptocurrency prices:', codicil=str(e))
-
-            try:
-                data = r.json()
-            except:
-                raise Error('cryptocurrency price download was garbled.')
-            coin_prices = {k: Quantity(v['USD'], '$') for k, v in data.items()}
-
-            if prices_cache:
-                contents = '\n'.join('{} = {}'.format(k,v) for k,v in coin_prices.items())
-                prices_cache.write_text(contents)
-                narrate('updating coin prices:', prices_cache)
-        coin_prices['USD'] = Quantity(1, '$')
-    else:
+    try:
         coin_prices = {}
+        if coins:
+            import requests
+
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, coin_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < max_price_age
+            if cache_valid:
+                contents = prices_cache.read_text()
+                coin_prices = Quantity.extract(contents)
+                narrate('coin prices are current:', prices_cache)
+            else:
+                narrate('updating coin prices')
+                # download latest asset prices from cryptocompare.com
+                currencies = dict(
+                    fsyms=','.join(coins),     # from symbols
+                    tsyms='USD',               # to symbols
+                )
+                url_args = '&'.join(f'{k}={v}' for k, v in currencies.items())
+                base_url = 'https://min-api.cryptocompare.com/data/pricemulti'
+                url = '?'.join([base_url, url_args])
+                try:
+                    r = requests.get(url, proxies=proxy)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access cryptocurrency prices:', codicil=str(e))
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('cryptocurrency price download was garbled.')
+                coin_prices = {k: Quantity(v['USD'], '$') for k, v in data.items()}
+
+                if prices_cache:
+                    contents = '\n'.join('{} = {}'.format(k,v) for k,v in coin_prices.items())
+                    prices_cache.write_text(contents)
+                    narrate('updating coin prices:', prices_cache)
+            coin_prices['USD'] = Quantity(1, '$')
+    except Error as e:
+        e.report()
+
 
     # Get security prices {{{1
-    if securities:
-        import requests
-
-        cache_valid = False
-        cache_dir = Path(cache_dir)
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        prices_cache = Path(cache_dir, security_prices_filename)
-        if prices_cache and prices_cache.exists():
-            now = arrow.now()
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < max_price_age
-        if cache_valid:
-            contents = prices_cache.read_text()
-            security_prices = Quantity.extract(contents)
-            narrate('security prices are current:', prices_cache)
-        else:
-            narrate('updating security prices')
-            # download latest security prices from iextrading.com
-            symbols = ','.join(securities)
-            url = f'https://api.iextrading.com/1.0/stock/market/batch?symbols={symbols}&types=quote'
-            try:
-                r = requests.get(url, proxies=proxy)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('cannot access security prices:', codicil=str(e))
-
-            try:
-                data = r.json()
-            except:
-                raise Error('security price download was garbled.')
-            security_prices = {
-                s: Quantity(data[s]['quote']['close'], '$')
-                #s: Quantity(data[s]['quote']['iexRealtimePrice'], '$')
-                for s in securities
-            }
-
-            if prices_cache:
-                contents = '\n'.join('{} = {}'.format(k,v) for k,v in security_prices.items())
-                prices_cache.write_text(contents)
-                narrate('updating security prices:', prices_cache)
-    else:
+    try:
         security_prices = {}
+        if securities:
+            import requests
+
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, security_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < max_price_age
+            if cache_valid:
+                contents = prices_cache.read_text()
+                security_prices = Quantity.extract(contents)
+                narrate('security prices are current:', prices_cache)
+            else:
+                narrate('updating security prices')
+                # download latest security prices from iexcloud.com
+                symbols = ','.join(securities)
+                test = False
+                baseUrl = 'https://cloud.iexapis.com'
+                path = 'stable/stock/market/batch'
+                query = dict(
+                    types = 'price',
+                    symbols = symbols,
+                    token = iexcloud_token,
+                )
+                query = '&'.join(f'{k}={v}' for k, v in query.items())
+                url = f'{baseUrl}/{path}?{query}'
+
+                try:
+                    r = requests.get(url, proxies=proxy)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access security prices:', codicil=str(e))
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('security price download was garbled.')
+                security_prices = {
+                    s: Quantity(data[s]['price'], '$')
+                    for s in securities
+                }
+
+                if prices_cache:
+                    contents = '\n'.join('{} = {}'.format(k,v) for k,v in security_prices.items())
+                    prices_cache.write_text(contents)
+                    narrate('updating security prices:', prices_cache)
+    except Error as e:
+        e.report()
 
     # Build account summaries {{{1
     narrate('running avendesora')
@@ -378,12 +392,18 @@ try:
                     if k == value_updated_subfieldname:
                         updated = v
                         continue
-                    if k in coin_prices:
-                        value = Quantity(v*coin_prices[k], coin_prices[k])
-                        k = 'cryptocurrency'
-                    elif k in security_prices:
-                        value = Quantity(v*security_prices[k], security_prices[k])
-                        k = 'equities'
+                    if k in coins:
+                        if k in coin_prices:
+                            value = Quantity(v*coin_prices[k], coin_prices[k])
+                            k = 'cryptocurrency'
+                        else:
+                            value = Quantity(v, 'tokens')
+                    elif k in securities:
+                        if k in security_prices:
+                            value = Quantity(v*security_prices[k], security_prices[k])
+                            k = 'equities'
+                        else:
+                            value = Quantity(v, 'shares')
                     else:
                         try:
                             value = mortgage_balance(v)
@@ -450,6 +470,19 @@ try:
         f'\n{"TOTAL":>{width+2}s}:',
         f'{grand_total:>7s} (assets = {total_assets}, debt = {total_debt})'
     )
+
+    # Summarize non-monetary types {{{1
+    show_title = True
+    for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
+        value = totals[asset_type]
+        if value.units == '$':
+            continue
+        asset_type = asset_type.replace('_', ' ')
+        if show_title:
+            display('\nNon Fungible Assets:')
+            show_title = False
+        display(f'{asset_type:>{width+2}s}: {value:>7s}')
+
 
 # Handle exceptions {{{1
 except OSError as e:
