@@ -82,8 +82,8 @@ aliases = {}
 proxy = None
 coin_prices_filename = 'coins'
 security_prices_filename = 'securities'
-coins = None
-securities = None
+coins = []
+securities = []
 max_price_age = 600  # refresh cache if older than this (seconds)
 
 # bar settings {{{2
@@ -313,7 +313,8 @@ try:
                 baseUrl = 'https://cloud.iexapis.com'
                 path = 'stable/stock/market/batch'
                 query = dict(
-                    types = 'price',
+                    #types = 'price',  # apparently price is no longer available for free tier
+                    types = 'quote',
                     symbols = symbols,
                     token = iexcloud_token,
                 )
@@ -337,7 +338,8 @@ try:
                 except:
                     raise Error('security price download was garbled.')
                 security_prices = {
-                    s: Quantity(data[s]['price'], '$')
+                    #s: Quantity(data[s]['price'], '$')
+                    s: Quantity(data[s]['quote']['latestPrice'], '$')
                     for s in securities
                 }
 
@@ -479,7 +481,7 @@ try:
             continue
         asset_type = asset_type.replace('_', ' ')
         if show_title:
-            display('\nNon Fungible Assets:')
+            display('\nNon Monetary Assets:')
             show_title = False
         display(f'{asset_type:>{width+2}s}: {value:>7s}')
 
