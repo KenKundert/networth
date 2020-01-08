@@ -8,8 +8,13 @@ Usage:
     networth [options] [<profile>]
 
 Options:
-    -u, --updated           show the account update date rather than breakdown
+    -c, --clear-cache       clear the prices cache
+    -i, --insecure          do not check certificate of prices website
+    -p, --prices            show coin and security prices
+    -P, --proxy             connect to the internet through a proxy
     -s, --sort              sort accounts by value rather than by name
+    -u, --updated           show the account update date rather than breakdown
+
 
 {available_profiles}
 Settings can be found in: {settings_dir}.
@@ -56,7 +61,8 @@ from avendesora.gpg import PythonFile
 from docopt import docopt
 from inform import (
     add_culprit, conjoin, display, done, error, fatal, get_culprit, is_str, 
-    join, narrate, os_error, render_bar, terminate, warn, Color, Error, Inform,
+    join, narrate, os_error, render, render_bar, terminate, warn,
+    Color, Error, Inform,
 )
 from math import log
 from operator import itemgetter
@@ -79,7 +85,12 @@ value_updated_subfieldname = 'updated'
 aliases = {}
 
 # cryptocurrency settings (empty coins to disable cryptocurrency support) {{{2
-proxy = None
+proxies = dict(
+    # The local socks5 proxy on port 9998.
+    # Use this at TI because they block access to cryptocompare.
+    http='socks5://localhost:9998',
+    https='socks5://localhost:9998',
+)
 coin_prices_filename = 'coins'
 security_prices_filename = 'securities'
 coins = []
@@ -213,6 +224,14 @@ try:
             'unknown profile.', choose_from, template=('{} {}', '{}'), 
             culprit=profile
         )
+    insecure = cmdline['--insecure']
+    if insecure:
+        requests.packages.urllib3.disable_warnings()
+    use_proxy = cmdline['--proxy']
+    if not use_proxy:
+        proxies = None
+    show_prices = cmdline['--prices']
+    use_caches = not cmdline['--clear-cache']
 
     # Read profile settings {{{1
     config_filepath = Path(user_config_dir(prog_name), profile + '.prof')
@@ -246,7 +265,7 @@ try:
                 now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
                 cache_valid = age < max_price_age
-            if cache_valid:
+            if use_caches and cache_valid:
                 contents = prices_cache.read_text()
                 coin_prices = Quantity.extract(contents)
                 narrate('coin prices are current:', prices_cache)
@@ -261,7 +280,7 @@ try:
                 base_url = 'https://min-api.cryptocompare.com/data/pricemulti'
                 url = '?'.join([base_url, url_args])
                 try:
-                    r = requests.get(url, proxies=proxy)
+                    r = requests.get(url, proxies=proxies)
                     if r.status_code != requests.codes.ok:
                         r.raise_for_status()
                 except KeyboardInterrupt:
@@ -286,7 +305,6 @@ try:
     except Error as e:
         e.report()
 
-
     # Get security prices {{{1
     try:
         security_prices = {}
@@ -301,7 +319,7 @@ try:
                 now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
                 cache_valid = age < max_price_age
-            if cache_valid:
+            if use_caches and cache_valid:
                 contents = prices_cache.read_text()
                 security_prices = Quantity.extract(contents)
                 narrate('security prices are current:', prices_cache)
@@ -322,7 +340,7 @@ try:
                 url = f'{baseUrl}/{path}?{query}'
 
                 try:
-                    r = requests.get(url, proxies=proxy)
+                    r = requests.get(url, proxies=proxies)
                     if r.status_code != requests.codes.ok:
                         r.raise_for_status()
                 except KeyboardInterrupt:
@@ -349,6 +367,18 @@ try:
                     narrate('updating security prices:', prices_cache)
     except Error as e:
         e.report()
+
+    if show_prices:
+        if coin_prices:
+            display('Coin Prices:')
+            for k, v in coin_prices.items():
+                display(k, v, template='   {}: {}')
+            display()
+        if security_prices:
+            display('Security Prices:')
+            for k, v in security_prices.items():
+                display(k, v, template='   {}: {}')
+            display()
 
     # Build account summaries {{{1
     narrate('running avendesora')
@@ -459,7 +489,7 @@ try:
     # Summarize by investment type {{{1
     display('\nBy Type:')
     largest_share = max(abs(v) for v in totals.values() if v.units == '$')
-    barwidth = screen_width - width - 18
+    barwidth = screen_width - width - 16
     for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
         value = totals[asset_type]
         if value.units != '$':
@@ -467,7 +497,7 @@ try:
         share = value/grand_total
         bar = colored_bar(value/largest_share, barwidth)
         asset_type = asset_type.replace('_', ' ')
-        display(f'{asset_type:>{width+2}s}: {value:>7s} ({share:>5.1%}) {bar}')
+        display(f'{asset_type:>{width+2}s}: {value:>7s} {share:>5.1%} {bar}')
     display(
         f'\n{"TOTAL":>{width+2}s}:',
         f'{grand_total:>7s} (assets = {total_assets}, debt = {total_debt})'
