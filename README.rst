@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.5.0
-| Released: 2019-07-18
+| Version: 0.6.0
+| Released: 2020-01-08
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
@@ -260,8 +260,8 @@ to pay off the loan faster.
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.5.0
-    | Released: 2019-07-18
+    | Version: 0.6.0
+    | Released: 2020-01-08
 
 **0.4 (2019-06-15)**:
     - Convert to using new IEXcloud API for downloading security prices.

@@ -70,8 +70,8 @@ from quantiphy import Quantity, InvalidNumber
 from pathlib import Path
 import arrow
 
-__version__ = "0.5.0"
-__released__ = "2019-07-18"
+__version__ = "0.6.0"
+__released__ = "2020-01-08"
 
 # Settings {{{1
 # These can be overridden in ~/.config/networth/config
