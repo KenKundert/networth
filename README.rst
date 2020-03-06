@@ -176,11 +176,22 @@ Here are some examples::
         ...
         estimated_value = dict(updated='November 2018', retirement='$74,327')
 
+    class TDAmeritrade(Account):
+        ...
+        estimated_value = dict( updated='November 2018', retirement='$74,327+$111,554')
+
+    class Fidelity(Account):
+        ...
+        estimated_value = dict( updated='November 2018', retirement='''
+            $62,976.22 +    # 401k
+            $26,704.85      # IRA
+        ''')
+
     class UnitedAirlines(Account):
         ...
         estimated_value = dict(updated='July 2018', miles='7,384_miles')
 
-    class Kraken(Account):
+    class CoinBase(Account):
         ...
         estimated_value = dict(updated='August 2018', ETH=2, BTC=4, cash=24.52)
 
@@ -262,6 +273,9 @@ Releases
 **Latest Development Version**:
     | Version: 0.6.0
     | Released: 2020-01-08
+
+    - Now uses `QuantiPhy Eval <https://github.com/KenKundert/quantiphy_eval>`_ 
+      to allow you to use expressions within strings for estimated values.
 
 **0.4 (2019-06-15)**:
     - Convert to using new IEXcloud API for downloading security prices.

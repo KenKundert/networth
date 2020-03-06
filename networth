@@ -66,9 +66,10 @@ from inform import (
 )
 from math import log
 from operator import itemgetter
-from quantiphy import Quantity, InvalidNumber
-from pathlib import Path
 import arrow
+from pathlib import Path
+from quantiphy import Quantity, InvalidNumber
+from quantiphy_eval import evaluate, rm_commas
 
 __version__ = "0.6.0"
 __released__ = "2020-01-08"
@@ -181,6 +182,26 @@ def mortgage_balance(description):
         return Quantity(balance, units='$')
     except (AttributeError, KeyError, ValueError) as e:
         raise Error('invalid mortgage description', unrecognized=True)
+
+# QuantiPhy Eval functions {{{2
+# median {{{3
+def median(*args):
+   args = sorted(args)
+   l = len(args)
+   m = l//2
+   if l % 2:
+       return args[m]
+   return (args[m] + args[m-1])/2
+
+# average {{{3
+def average(*args):
+   return sum(args)/len(args)
+
+# my_functions {{{3
+my_functions = dict(
+    median = median,
+    average = average,
+)
 
 try:
     # Initialization {{{1
@@ -417,13 +438,18 @@ try:
             total = Quantity(0, '$')
             odd_units = False
             for k, v in data.items():
-                    try:
-                        v = ' '.join(v.split())
-                    except AttributeError:
-                        pass
                     if k == value_updated_subfieldname:
                         updated = v
                         continue
+
+                    try:
+                        v = evaluate(rm_commas(v), functions=my_functions)
+                    except Exception as e:
+                        try:
+                            v = ' '.join(v.split())
+                        except AttributeError:
+                            pass
+
                     if k in coins:
                         if k in coin_prices:
                             value = Quantity(v*coin_prices[k], coin_prices[k])

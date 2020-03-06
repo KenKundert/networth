@@ -28,6 +28,7 @@ setup(
             # incompatible fork of 'python-gnupg'.  If both are installed, the 
             # user will probably have compatibility issues.
         'quantiphy',
+        'quantiphy_eval>=0.2',
     ],
     python_requires='>=3.6',
     keywords = 'networth'.split(),
