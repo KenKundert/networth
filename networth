@@ -71,7 +71,7 @@ from pathlib import Path
 from quantiphy import Quantity, InvalidNumber
 from quantiphy_eval import evaluate, rm_commas
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 __released__ = "2020-03-06"
 
 # Settings {{{1
