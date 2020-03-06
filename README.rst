@@ -8,7 +8,7 @@ Networth: Summarize Your Net Worth
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
 generate a summary of your networth. *Networth* reads *estimated_value* fields 
 from *Avendesora* accounts and summarizes the result.  It is often used with, 
-and shares fields with, `PostMortem <https://postmortem.readthedocs.io>`_.
+and shares fields with, `PostMortem <https://github.com/KenKundert/postmortem>`_.
 
 Please report all bugs and suggestions to networth@nurdletech.com
 
@@ -274,8 +274,15 @@ Releases
     | Version: 0.6.1
     | Released: 2020-03-06
 
+**0.7 (2020-03-06)**:
     - Now uses `QuantiPhy Eval <https://github.com/KenKundert/quantiphy_eval>`_ 
       to allow you to use expressions within strings for estimated values.
+
+**0.6 (2020-01-08)**:
+    - Added --prices and --clear-cache command line options.
+    - Support using a proxy
+
+**0.5 (2019-07-18)**:
 
 **0.4 (2019-06-15)**:
     - Convert to using new IEXcloud API for downloading security prices.
