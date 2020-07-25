@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.7.0
-| Released: 2020-03-06
+| Version: 0.7.1
+| Released: 2020-07-24
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
@@ -271,8 +271,8 @@ to pay off the loan faster.
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.7.0
-    | Released: 2020-03-06
+    | Version: 0.7.1
+    | Released: 2020-07-24
 
 **0.7 (2020-03-06)**:
     - Now uses `QuantiPhy Eval <https://github.com/KenKundert/quantiphy_eval>`_ 

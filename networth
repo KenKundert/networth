@@ -82,8 +82,8 @@ from pathlib import Path
 from quantiphy import Quantity, InvalidNumber
 from quantiphy_eval import evaluate, rm_commas
 
-__version__ = "0.7.0"
-__released__ = "2020-03-06"
+__version__ = "0.7.1"
+__released__ = "2020-07-24"
 
 # Settings {{{1
 # These can be overridden in ~/.config/networth/config
