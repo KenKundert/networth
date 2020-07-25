@@ -5,9 +5,10 @@
 Show a summary of the networth of the specified person.
 
 Usage:
-    networth [options] [<profile>]
+    networth [options] [<profile>...]
 
 Options:
+    -a, --all               show all accounts, even those with zero balance
     -c, --clear-cache       clear the prices cache
     -i, --insecure          do not check certificate of prices website
     -p, --prices            show coin and security prices
@@ -25,6 +26,10 @@ override those built in to the program, and those in the individual profiles
 override those in 'config'. The following settings are understood. The values 
 are those before an individual profile is applied.
 
+You can also specify an argument of the form AAA=NN where AAA is the name of 
+a security and NN is the number of shared. This amount is added to the account 
+'command line'.
+
 Profile values:
     default_profile = {default_profile}
 
@@ -36,12 +41,18 @@ Account values:
     aliases = {aliases}
         (aliases is used to fix account names to make them more readable)
 
-Cryptocurrency values:
+Investment values:
     coins = {coins}
-    securities = {securities}
+    coins_max_price_age = {coins_max_price_age} (seconds)
     coin_prices_filename = {coin_prices_filename}
+
+    securities = {securities}
+    securities_max_price_age = {securities_max_price_age} (seconds)
     security_prices_filename = {security_prices_filename}
-    max_price_age = {max_price_age}  (in seconds)
+
+    metals = {metals}
+    metals_max_price_age = {metals_max_price_age} (seconds)
+    metal_prices_filename = {metal_prices_filename}
 
 Bar graph values:
     screen_width = {screen_width}
@@ -94,9 +105,13 @@ proxies = dict(
 )
 coin_prices_filename = 'coins'
 security_prices_filename = 'securities'
+metal_prices_filename = 'metals'
 coins = []
 securities = []
-max_price_age = 600  # refresh cache if older than this (seconds)
+metals = []
+coins_max_price_age = 10*60       # refresh cache if older than this (seconds)
+securities_max_price_age = 10*60  # refresh cache if older than this (seconds)
+metals_max_price_age = 24*60*60   # refresh cache if older than this (seconds)
 
 # bar settings {{{2
 screen_width = 79
@@ -149,6 +164,51 @@ def colorize(value, text = None):
 # colored bar {{{2
 def colored_bar(value, width):
     return colorize(value, render_bar(abs(value), width))
+
+# resolve_value {{{2
+# Evaluate & convert (expression, coin, security, mortgage) to final value.
+def resolve_value(key, value):
+    try:
+        value = evaluate(rm_commas(value), functions=my_functions)
+    except Exception:
+        try:
+            value = ' '.join(value.split())
+        except AttributeError:
+            pass
+
+    if key in coins:
+        if key in coin_prices:
+            value = Quantity(float(value)*coin_prices[key], coin_prices[key])
+            if key == 'USD':
+                key = 'cash'
+            else:
+                key = 'cryptocurrency'
+        else:
+            value = Quantity(value, 'tokens')
+    elif key in securities:
+        if key in security_prices:
+            value = Quantity(float(value)*security_prices[key], security_prices[key])
+            key = 'equities'
+        else:
+            value = Quantity(value, 'shares')
+    elif key in metals:
+        if key in metals:
+            value = Quantity(float(value)*metal_prices[key], '$')
+            key = 'metals'
+        else:
+            value = Quantity(value, 'oz')
+    else:
+        try:
+            value = mortgage_balance(value)
+        except Error as e:
+            if e.unrecognized:
+                try:
+                    value = Quantity(value, '$')
+                except InvalidNumber as e:
+                    raise Error(str(e), culprit=get_culprit(key))
+            else:
+                e.reraise(culprit=get_culprit(key))
+    return key, value
 
 # mortgage_balance {{{2
 def mortgage_balance(description):
@@ -207,7 +267,7 @@ try:
     # Initialization {{{1
     settings_dir = Path(user_config_dir(prog_name))
     cache_dir = user_cache_dir(prog_name)
-    Quantity.set_prefs(prec=2)
+    Quantity.set_prefs(prec='full', strip_radix=True)
     Inform(logfile=Path(cache_dir, 'log'))
     display.log = False   # do not log normal output
 
@@ -239,7 +299,23 @@ try:
         sort_mode = dict(key=itemgetter(1), reverse=True)  # sort by value
     else:
         sort_mode = dict(key=itemgetter(0), reverse=False)  # sort by name
-    profile = cmdline['<profile>'] if cmdline['<profile>'] else default_profile
+    args = cmdline['<profile>']
+    extras = {}
+    profile = None
+    use_alt_fieldname = False
+    for arg in args:
+        name, _, num = arg.partition('=')
+        if num:
+            extras[name] = num
+        else:
+            if profile:
+                error('too many profile names, ignored.', culprit=arg)
+            else:
+                use_alt_fieldname = name.endswith('#')
+                profile = name.rstrip('#')
+    if not profile:
+        profile = default_profile
+
     if profile not in available:
         fatal(
             'unknown profile.', choose_from, template=('{} {}', '{}'), 
@@ -272,6 +348,10 @@ try:
     asset_color = Color(asset_color, enable=Color.isTTY())
     debt_color = Color(debt_color, enable=Color.isTTY())
 
+    # initialize avendesora
+    narrate('running avendesora')
+    pw = PasswordGenerator()
+
     # Get cryptocurrency prices {{{1
     try:
         coin_prices = {}
@@ -285,7 +365,7 @@ try:
             if prices_cache and prices_cache.exists():
                 now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
-                cache_valid = age < max_price_age
+                cache_valid = age < coins_max_price_age
             if use_caches and cache_valid:
                 contents = prices_cache.read_text()
                 coin_prices = Quantity.extract(contents)
@@ -319,7 +399,10 @@ try:
                 coin_prices = {k: Quantity(v['USD'], '$') for k, v in data.items()}
 
                 if prices_cache:
-                    contents = '\n'.join('{} = {}'.format(k,v) for k,v in coin_prices.items())
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in coin_prices.items()
+                    )
                     prices_cache.write_text(contents)
                     narrate('updating coin prices:', prices_cache)
             coin_prices['USD'] = Quantity(1, '$')
@@ -339,7 +422,7 @@ try:
             if prices_cache and prices_cache.exists():
                 now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
-                cache_valid = age < max_price_age
+                cache_valid = age < securities_max_price_age
             if use_caches and cache_valid:
                 contents = prices_cache.read_text()
                 security_prices = Quantity.extract(contents)
@@ -376,14 +459,20 @@ try:
                     data = r.json()
                 except:
                     raise Error('security price download was garbled.')
-                security_prices = {
-                    #s: Quantity(data[s]['price'], '$')
-                    s: Quantity(data[s]['quote']['latestPrice'], '$')
-                    for s in securities
-                }
+                try:
+                    security_prices = {
+                        #s: Quantity(data[s]['price'], '$')
+                        s: Quantity(data[s]['quote']['latestPrice'], '$')
+                        for s in securities
+                    }
+                except KeyError as e:
+                    error('not available.', culprit=e)
 
                 if prices_cache:
-                    contents = '\n'.join('{} = {}'.format(k,v) for k,v in security_prices.items())
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in security_prices.items()
+                    )
                     prices_cache.write_text(contents)
                     narrate('updating security prices:', prices_cache)
     except Error as e:
@@ -401,9 +490,69 @@ try:
                 display(k, v, template='   {}: {}')
             display()
 
+    # Get precious metal prices {{{1
+    try:
+        metal_prices = {}
+        if metals:
+            import requests
+
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, metal_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < metals_max_price_age
+            if use_caches and cache_valid:
+                contents = prices_cache.read_text()
+                metal_prices = Quantity.extract(contents)
+                narrate('precious metal prices are current:', prices_cache)
+            else:
+                narrate('updating precious metal prices')
+                # download latest asset prices from cryptocompare.com
+                base_url = 'https://metals-api.com/api/latest'
+                metals_api_account = pw.get_account('metals-api')
+                params = dict(
+                    access_key = str(metals_api_account.get_value('api-key')),
+                    base = 'USD',
+                    symbols = ','.join(metals)
+                )
+                try:
+                    r = requests.get(base_url, params=params, proxies=proxies)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access precious metals prices:', codicil=e)
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('precious metals price download was garbled.')
+                assert data['base'] == 'USD'
+                assert data['unit'] == 'per ounce'
+                assert data['rates']['USD'] == 1
+                metal_prices = {
+                    k: Quantity(1/float(v), '$/oz')
+                    for k, v in data['rates'].items()
+                    if k != 'USD'
+                }
+                if prices_cache:
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in metal_prices.items()
+                    )
+                    prices_cache.write_text(contents)
+                    narrate('updating metal prices:', prices_cache)
+    except Error as e:
+        e.report()
+
     # Build account summaries {{{1
-    narrate('running avendesora')
-    pw = PasswordGenerator()
     totals = {}
     accounts = []
     total_assets = Quantity(0, '$')
@@ -411,10 +560,15 @@ try:
     grand_total = Quantity(0, '$')
     width = 0
 
+    # accounts in Avendesora {{{2
     for account in pw.all_accounts():
 
-        # get data {{{2
-        data = account.get_composite(avendesora_fieldname)
+        # get data {{{3
+        data = None
+        if use_alt_fieldname:
+            data = account.get_composite('_' + avendesora_fieldname)
+        if not data:
+            data = account.get_composite(avendesora_fieldname)
         if not data:
             continue
         if type(data) != dict:
@@ -424,7 +578,7 @@ try:
             )
             continue
 
-        # get account name {{{2
+        # get account name {{{3
         account_name = account.get_name()
         account_name = aliases.get(account_name, account_name)
         account_name = account_name.replace('_', ' ')
@@ -432,80 +586,99 @@ try:
 
         with add_culprit((account_name, avendesora_fieldname)):
 
-            # sum the data {{{2
+            # sum the data {{{3
             updated = None
             contents = {}
             total = Quantity(0, '$')
             odd_units = False
-            for k, v in data.items():
-                    if k == value_updated_subfieldname:
-                        updated = v
+            for key, value in data.items():
+                    if key == value_updated_subfieldname:
+                        updated = value
                         continue
 
-                    try:
-                        v = evaluate(rm_commas(v), functions=my_functions)
-                    except Exception as e:
-                        try:
-                            v = ' '.join(v.split())
-                        except AttributeError:
-                            pass
-
-                    if k in coins:
-                        if k in coin_prices:
-                            value = Quantity(v*coin_prices[k], coin_prices[k])
-                            k = 'cryptocurrency'
-                        else:
-                            value = Quantity(v, 'tokens')
-                    elif k in securities:
-                        if k in security_prices:
-                            value = Quantity(v*security_prices[k], security_prices[k])
-                            k = 'equities'
-                        else:
-                            value = Quantity(v, 'shares')
-                    else:
-                        try:
-                            value = mortgage_balance(v)
-                        except Error as err:
-                            if err.unrecognized:
-                                try:
-                                    value = Quantity(v, '$')
-                                except InvalidNumber as e:
-                                    raise Error(str(e), culprit=get_culprit(k))
-                            else:
-                                err.reraise(culprit=get_culprit(k))
+                    key, value = resolve_value(key, value)
                     if value.units == '$':
                         total = total.add(value)
                     else:
                         odd_units = True
-                    contents[k] = value.add(contents.get(k, 0))
-                    width = max(width, len(k))
+                    contents[key] = value.add(contents.get(key, 0))
+                    width = max(width, len(key))
 
             # add to totals
             for k, v in contents.items():
                 totals[k] = v.add(totals.get(k, 0))
 
-            # generate the account summary {{{2
+            # generate the account summary {{{3
             age = get_age(updated)
             if show_updated and updated:
                 desc = updated
             else:
                 desc = ', '.join('{}={}'.format(k, v) for k, v in contents.items() if v)
                 if len(contents) == 1 and not odd_units:
-                    desc = k
+                    desc = key
+                if not desc:
+                    desc = 'cash'
+                elif not contents:
+                    desc = 'cash'
                 if age and age > max_account_value_age:
                     desc += f' ({age//30} months old)'
             summary = join(
                 total, desc.replace('_', ' '),
-                template=('{:7q} {}', '{:7q}'), remove=(None,'')
+                #template=('{:7q} {}', '{:7q}'), remove=(None,'') ksk
+                template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
             )
-            accounts.append((account_name, total, summary))
+            if total or cmdline['--all']:
+                accounts.append((account_name, total, summary))
 
-            # sum assets and debts {{{2
+            # sum assets and debts {{{3
             if total > 0:
                 total_assets = total_assets.add(total)
             else:
                 total_debt = total_debt.add(-total)
             grand_total = grand_total.add(total)
+
+    # command-line account {{{2
+    account_name = 'command line'
+    width = max(width, len(account_name))
+
+    with add_culprit(account_name):
+        contents = {}
+        total = Quantity(0, '$')
+
+        for key, value in extras.items():
+            # sum the data {{{3
+            total = Quantity(0, '$')
+            odd_units = False
+            key, value = resolve_value(key, value)
+            if value.units == '$':
+                total = total.add(value)
+            else:
+                odd_units = True
+            contents[key] = value.add(contents.get(key, 0))
+            width = max(width, len(key))
+
+        # add to totals
+        for k, v in contents.items():
+            totals[k] = v.add(totals.get(k, 0))
+
+        # generate the account summary {{{3
+        desc = ', '.join('{}={}'.format(k, v) for k, v in contents.items() if v)
+        if len(contents) == 1 and not odd_units:
+            desc = key
+        summary = join(
+            total, desc.replace('_', ' '),
+            #template=('{:7q} {}', '{:7q}'), remove=(None,'') ksk
+            template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
+        )
+        if total:
+            accounts.append((account_name, total, summary))
+
+        # sum assets and debts {{{3
+        if total > 0:
+            total_assets = total_assets.add(total)
+        else:
+            total_debt = total_debt.add(-total)
+        grand_total = grand_total.add(total)
 
     # Summarize by account {{{1
     display('By Account:')
@@ -515,7 +688,7 @@ try:
     # Summarize by investment type {{{1
     display('\nBy Type:')
     largest_share = max(abs(v) for v in totals.values() if v.units == '$')
-    barwidth = screen_width - width - 16
+    barwidth = screen_width - width - 19
     for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
         value = totals[asset_type]
         if value.units != '$':
@@ -523,10 +696,11 @@ try:
         share = value/grand_total
         bar = colored_bar(value/largest_share, barwidth)
         asset_type = asset_type.replace('_', ' ')
-        display(f'{asset_type:>{width+2}s}: {value:>7s} {share:>5.1%} {bar}')
+        #display(f'{asset_type:>{width+2}s}: {value:>7s} {share:>5.1%} {bar}')
+        display(f'{asset_type:>{width+2}s}: {value:10,.0p} {share:>5.1%} {bar}')
     display(
         f'\n{"TOTAL":>{width+2}s}:',
-        f'{grand_total:>7s} (assets = {total_assets}, debt = {total_debt})'
+        f'{grand_total:>7.2q} (assets = {total_assets:.2q}, debt = {total_debt:.2q})'
     )
 
     # Summarize non-monetary types {{{1
@@ -539,7 +713,7 @@ try:
         if show_title:
             display('\nNon Monetary Assets:')
             show_title = False
-        display(f'{asset_type:>{width+2}s}: {value:>7s}')
+        display(f'{asset_type:>{width+2}s}: {value:,.0p}')
 
 
 # Handle exceptions {{{1
