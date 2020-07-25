@@ -270,6 +270,9 @@ try:
     Quantity.set_prefs(prec='full', strip_radix=True)
     Inform(logfile=Path(cache_dir, 'log'))
     display.log = False   # do not log normal output
+    iexcloud_token = None
+    iexcloud_api_key = iexcloud_api_key_avendesora_account = None
+    metals_api_key = metals_api_key_avendesora_account = None
 
     # Read generic settings {{{1
     config_filepath = Path(settings_dir, config_filename)
@@ -369,19 +372,19 @@ try:
             if use_caches and cache_valid:
                 contents = prices_cache.read_text()
                 coin_prices = Quantity.extract(contents)
-                narrate('coin prices are current:', prices_cache)
+                narrate('cryptocurrency prices are current:', prices_cache)
             else:
-                narrate('updating coin prices')
+                narrate('updating cryptocurrency prices')
                 # download latest asset prices from cryptocompare.com
-                currencies = dict(
+                params = dict(
                     fsyms=','.join(coins),     # from symbols
                     tsyms='USD',               # to symbols
                 )
-                url_args = '&'.join(f'{k}={v}' for k, v in currencies.items())
-                base_url = 'https://min-api.cryptocompare.com/data/pricemulti'
-                url = '?'.join([base_url, url_args])
+                base_url = 'https://min-api.cryptocompare.com'
+                path = 'data/pricemulti'
+                url = '/'.join([base_url, path])
                 try:
-                    r = requests.get(url, proxies=proxies)
+                    r = requests.get(url, params=params, proxies=proxies)
                     if r.status_code != requests.codes.ok:
                         r.raise_for_status()
                 except KeyboardInterrupt:
@@ -429,22 +432,27 @@ try:
                 narrate('security prices are current:', prices_cache)
             else:
                 narrate('updating security prices')
-                # download latest security prices from iexcloud.com
+                # download latest security prices from iexcloud.io
                 symbols = ','.join(securities)
                 test = False
-                baseUrl = 'https://cloud.iexapis.com'
+                base_url = 'https://cloud.iexapis.com'
                 path = 'stable/stock/market/batch'
-                query = dict(
+                url = '/'.join([base_url, path])
+                if not iexcloud_api_key:
+                    iexcloud_api_key = str(pw.get_value(iexcloud_api_key_avendesora_account))
+                if not iexcloud_api_key:
+                    if iexcloud_token:
+                        raise Error('iexcloud_token is deprecated, use iexcloud_api_key instead.')
+                    else:
+                        raise Error('IEXcloud.io API access key not available.')
+                params = dict(
                     #types = 'price',  # apparently price is no longer available for free tier
                     types = 'quote',
                     symbols = symbols,
-                    token = iexcloud_token,
+                    token = iexcloud_api_key,
                 )
-                query = '&'.join(f'{k}={v}' for k, v in query.items())
-                url = f'{baseUrl}/{path}?{query}'
-
                 try:
-                    r = requests.get(url, proxies=proxies)
+                    r = requests.get(url, params=params, proxies=proxies)
                     if r.status_code != requests.codes.ok:
                         r.raise_for_status()
                 except KeyboardInterrupt:
@@ -478,18 +486,6 @@ try:
     except Error as e:
         e.report()
 
-    if show_prices:
-        if coin_prices:
-            display('Coin Prices:')
-            for k, v in coin_prices.items():
-                display(k, v, template='   {}: {}')
-            display()
-        if security_prices:
-            display('Security Prices:')
-            for k, v in security_prices.items():
-                display(k, v, template='   {}: {}')
-            display()
-
     # Get precious metal prices {{{1
     try:
         metal_prices = {}
@@ -511,15 +507,20 @@ try:
             else:
                 narrate('updating precious metal prices')
                 # download latest asset prices from cryptocompare.com
-                base_url = 'https://metals-api.com/api/latest'
-                metals_api_account = pw.get_account('metals-api')
+                base_url = 'https://metals-api.com'
+                path = 'api/latest'
+                url = '/'.join([base_url, path])
+                if not metals_api_key:
+                    metals_api_key = str(pw.get_value(metals_api_key_avendesora_account))
+                if not metals_api_key:
+                    raise Error('Metals-API.com API access key not available.')
                 params = dict(
-                    access_key = str(metals_api_account.get_value('api-key')),
+                    access_key = str(pw.get_value('metals-api:api-key')),
                     base = 'USD',
                     symbols = ','.join(metals)
                 )
                 try:
-                    r = requests.get(base_url, params=params, proxies=proxies)
+                    r = requests.get(url, params=params, proxies=proxies)
                     if r.status_code != requests.codes.ok:
                         r.raise_for_status()
                 except KeyboardInterrupt:
@@ -551,6 +552,24 @@ try:
                     narrate('updating metal prices:', prices_cache)
     except Error as e:
         e.report()
+
+    # Show current prices if requested {{{1
+    if show_prices:
+        if coin_prices:
+            display('Crypticurrency Coin Prices:')
+            for k, v in coin_prices.items():
+                display(k, v, template='   {}: {:#,.2p}')
+            display()
+        if security_prices:
+            display('Security Prices:')
+            for k, v in security_prices.items():
+                display(k, v, template='   {}: {:#,.2p}')
+            display()
+        if metal_prices:
+            display('Precious Metal Prices:')
+            for k, v in metal_prices.items():
+                display(k, v, template='   {}: {:#,.2p}')
+            display()
 
     # Build account summaries {{{1
     totals = {}

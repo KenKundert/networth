@@ -96,6 +96,11 @@ to read.
 
 A list of crytpocurrency tokens that should be available for use.
 
+**coins_max_price_age**
+
+Maximum age in seconds of the coins price caches. If the prices are older than 
+this, the cache is flushed and the prices are updated.
+
 **coin_prices_filename**
 
 Name of the file used as the cryptocurrency price cache.
@@ -104,21 +109,47 @@ Name of the file used as the cryptocurrency price cache.
 
 A list of security symbols that should be available for use.
 
+**secrities_max_price_age**
+
+Maximum age in seconds of the securities price caches. If the prices are older 
+than this, the cache is flushed and the prices are updated.
+
 **security_prices_filename**
 
 Name of the file used as the security price cache.
 
-**iexcloud_token**
+**iexcloud_api_key** or **iexcloud_api_key_avendesora_account**
 
-The security prices are downloaded from the IEXcloud. You must sign up with them 
+The security prices are downloaded from IEXcloud.io. You must sign up with them 
 to use this service. The free account is more than sufficient for your needs.  
 Once you sign up you can get an API token, which you give as the value for this 
-field.  This field must be given if you specify securities.
+field.  This field must be given if you specify securities.  You may specify the 
+API token directly using *iexcloud_api_key* or you can specify the account and 
+field name for the API key if it is held by *Avendesora* with 
+*iexcloud_api_key_avendesora_account*.
 
-**max_price_age**
+**metals**
 
-Maximum age in seconds of the price caches. If the prices are older than 
+A list of precious metal tokens that should be available for use.
+
+**metals_max_price_age**
+
+Maximum age in seconds of the metals price caches. If the prices are older than 
 this, the cache is flushed and the prices are updated.
+
+**metal_prices_filename**
+
+Name of the file used as the precious metal price cache.
+
+**metals_api_key** or **metals_api_key_avendesora_account**
+
+The precious metal prices are downloaded from metals-api.com. You must sign up 
+with them to use this service. The free account is generally sufficient for your 
+needs.  Once you sign up you can get an API token, which you give as the value 
+for this field.  This field must be given if you specify precious metals.  You 
+may specify the API token directly using *metals_api_key* or you can specify the 
+account and field name for the API key if it is held by *Avendesora* with 
+*metals_api_key_avendesora_account*.
 
 
 Example Configuration Files
@@ -273,6 +304,8 @@ Releases
 **Latest Development Version**:
     | Version: 0.7.1
     | Released: 2020-07-24
+
+    - Add support for downloading prices of precious metals.
 
 **0.7 (2020-03-06)**:
     - Now uses `QuantiPhy Eval <https://github.com/KenKundert/quantiphy_eval>`_ 
