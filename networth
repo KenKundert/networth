@@ -632,7 +632,7 @@ try:
             if show_updated and updated:
                 desc = updated
             else:
-                desc = ', '.join('{}={}'.format(k, v) for k, v in contents.items() if v)
+                desc = ', '.join('{}={:.2}'.format(k, v) for k, v in contents.items() if v)
                 if len(contents) == 1 and not odd_units:
                     desc = key
                 if not desc:
