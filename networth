@@ -78,9 +78,10 @@ from inform import (
 from math import log
 from operator import itemgetter
 import arrow
+import requests
 from pathlib import Path
 from quantiphy import Quantity, InvalidNumber
-from quantiphy_eval import evaluate, rm_commas
+from quantiphy_eval import evaluate, initialize, rm_commas
 
 __version__ = "0.7.2"
 __released__ = "2020-07-25"
@@ -169,12 +170,13 @@ def colored_bar(value, width):
 # Evaluate & convert (expression, coin, security, mortgage) to final value.
 def resolve_value(key, value):
     try:
-        value = evaluate(rm_commas(value), functions=my_functions)
+        value = evaluate(rm_commas(value))
     except Exception:
         try:
             value = ' '.join(value.split())
         except AttributeError:
             pass
+    raw_value = value
 
     if key in coins:
         if key in coin_prices:
@@ -182,17 +184,20 @@ def resolve_value(key, value):
             if key == 'USD':
                 key = 'cash'
             else:
+                raw_totals[key] = raw_totals.get(key, Quantity(0, key)).add(raw_value)
                 key = 'cryptocurrency'
         else:
             value = Quantity(value, 'tokens')
     elif key in securities:
         if key in security_prices:
+            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(raw_value))
             value = Quantity(float(value)*security_prices[key], security_prices[key])
             key = 'equities'
         else:
             value = Quantity(value, 'shares')
     elif key in metals:
         if key in metals:
+            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(raw_value))
             value = Quantity(float(value)*metal_prices[key], '$')
             key = 'metals'
         else:
@@ -262,6 +267,7 @@ my_functions = dict(
     median = median,
     average = average,
 )
+initialize(functions=my_functions)
 
 try:
     # Initialization {{{1
@@ -359,8 +365,6 @@ try:
     try:
         coin_prices = {}
         if coins:
-            import requests
-
             cache_valid = False
             cache_dir = Path(cache_dir)
             cache_dir.mkdir(parents=True, exist_ok=True)
@@ -553,26 +557,9 @@ try:
     except Error as e:
         e.report()
 
-    # Show current prices if requested {{{1
-    if show_prices:
-        if coin_prices:
-            display('Crypticurrency Coin Prices:')
-            for k, v in coin_prices.items():
-                display(k, v, template='   {}: {:#,.2p}')
-            display()
-        if security_prices:
-            display('Security Prices:')
-            for k, v in security_prices.items():
-                display(k, v, template='   {}: {:#,.2p}')
-            display()
-        if metal_prices:
-            display('Precious Metal Prices:')
-            for k, v in metal_prices.items():
-                display(k, v, template='   {}: {:#,.2p}')
-            display()
-
     # Build account summaries {{{1
     totals = {}
+    raw_totals = {}
     accounts = []
     total_assets = Quantity(0, '$')
     total_debt = Quantity(0, '$')
@@ -698,6 +685,29 @@ try:
         else:
             total_debt = total_debt.add(-total)
         grand_total = grand_total.add(total)
+
+    # Show current prices if requested {{{1
+    if show_prices:
+        fmt = dict(
+            template = ('   {2:>15.1p}: {1:#,.2p}', '   {0}: {1:#,.2p}'),
+            remove = None,
+        )
+        if coin_prices:
+            display('Cryptocurrency Coin Prices:')
+            for k, v in coin_prices.items():
+                if k != 'USD':
+                    display(k, v, raw_totals.get(k), **fmt)
+            display()
+        if security_prices:
+            display('Security Prices:')
+            for k, v in security_prices.items():
+                display(k, v, raw_totals.get(k), **fmt)
+            display()
+        if metal_prices:
+            display('Precious Metal Prices:')
+            for k, v in metal_prices.items():
+                display(k, v, raw_totals.get(k), **fmt)
+            display()
 
     # Summarize by account {{{1
     display('By Account:')
