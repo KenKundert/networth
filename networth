@@ -621,7 +621,7 @@ try:
             else:
                 desc = ', '.join('{}={:.2}'.format(k, v) for k, v in contents.items() if v)
                 if len(contents) == 1 and not odd_units:
-                    desc = key
+                    desc = list(contents.keys())[0]
                 if not desc:
                     desc = 'cash'
                 elif not contents:
