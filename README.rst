@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.7.3
-| Released: 2020-08-12
+| Version: 0.8.0
+| Released: 2020-10-10
 |
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
@@ -295,8 +295,8 @@ to pay off the loan faster.
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.7.3
-    | Released: 2020-08-12
+    | Version: 0.8.0
+    | Released: 2020-10-10
 
     - Add support for downloading prices of precious metals.
 
