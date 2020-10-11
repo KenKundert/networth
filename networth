@@ -16,7 +16,6 @@ Options:
     -s, --sort              sort accounts by value rather than by name
     -u, --updated           show the account update date rather than breakdown
 
-
 {available_profiles}
 Settings can be found in: {settings_dir}.
 Typically there is one file for generic settings named 'config' and then one 
@@ -68,12 +67,13 @@ A description of how to configure and use this program can be found at
 # Imports {{{1
 from appdirs import user_config_dir, user_cache_dir
 from avendesora import PasswordGenerator, PasswordError
-from avendesora.gpg import PythonFile
+import nestedtext as nt
+import voluptuous
 from docopt import docopt
 from inform import (
-    add_culprit, conjoin, display, done, error, fatal, get_culprit, is_str, 
-    join, narrate, os_error, render, render_bar, terminate, warn,
-    Color, Error, Inform,
+    add_culprit, conjoin, display, done, error, fatal, full_stop, get_culprit, 
+    is_collection, is_str, join, narrate, os_error, render, render_bar, 
+    terminate, warn, Color, Error, Inform,
 )
 from math import log
 from operator import itemgetter
@@ -146,6 +146,48 @@ def to_date(date):
         codicil = f"Choose from one of the following formats: {fmts}.",
         culprit = get_culprit()
     )
+
+def to_list(v):
+    # allows list values to be specified with a single string which it split
+    # to form the list.
+    if is_str(v):
+        return v.split()
+    if is_collection(v):
+        return v
+    raise voluptuous.Invalid(
+        'expected list or string that can be split into a list'
+    )
+
+def convert_keys_to_identifiers(d):
+    # allows keys to be specified as individual words, which are joined with
+    # underscores to form the identifier
+    return {'_'.join(k.split()):v for k, v in d.items()}
+
+# define Voluptuous schema for config files {{{2
+schema = voluptuous.Schema(dict(
+    aliases = {str: str},
+    asset_color = str,
+    avendesora_fieldname = str,
+    coin_prices_filename = str,
+    coins = voluptuous.Coerce(to_list),
+    coins_max_price_age = str,
+    date_formats = str,
+    debt_color = str,
+    default_profile = str,
+    iexcloud_api_key_avendesora_account = str,
+    iexcloud_api_key = str,
+    max_account_value_age = voluptuous.Coerce(int),
+    metal_prices_filename = str,
+    metals_api_key_avendesora_account = str,
+    metals_api_key = str,
+    metals = voluptuous.Coerce(to_list),
+    metals_max_price_age = str,
+    screen_width = voluptuous.Coerce(int),
+    securities = voluptuous.Coerce(to_list),
+    securities_max_price_age = voluptuous.Coerce(int),
+    security_prices_filename = str,
+    value_updated_subfieldname = str,
+))
 
 # get the age of an account value {{{2
 def get_age(date):
@@ -284,14 +326,19 @@ try:
     config_filepath = Path(settings_dir, config_filename)
     if config_filepath.exists():
         narrate('reading:', config_filepath)
-        settings = PythonFile(config_filepath)
-        settings.initialize()
-        locals().update(settings.run())
+        settings = config_filepath.read_text()
+        settings = nt.loads(settings)
+        settings = convert_keys_to_identifiers(settings)
+        try:
+            settings = schema(settings)
+        except voluptuous.Invalid as e:
+            raise Error(full_stop(e.msg), culprit=(config_filepath, e.path))
+        locals().update(settings)
     else:
         narrate('not found:', config_filepath)
 
     # Read command line and process options {{{1
-    available=set(p.stem for p in settings_dir.glob('*.prof'))
+    available = set(p.stem for p in settings_dir.glob('*.prof'))
     available.add(default_profile)
     if len(available) > 1:
         choose_from = f'Choose <profile> from {conjoin(sorted(available))}.'
@@ -343,9 +390,14 @@ try:
     config_filepath = Path(user_config_dir(prog_name), profile + '.prof')
     if config_filepath.exists():
         narrate('reading:', config_filepath)
-        settings = PythonFile(config_filepath)
-        settings.initialize()
-        locals().update(settings.run())
+        settings = config_filepath.read_text()
+        settings = nt.loads(settings)
+        settings = convert_keys_to_identifiers(settings)
+        try:
+            settings = schema(settings)
+        except voluptuous.Invalid as e:
+            raise Error(e, culprit=config_filepath)
+        locals().update(settings)
     else:
         narrate('not found:', config_filepath)
 
@@ -750,6 +802,6 @@ except OSError as e:
     error(os_error(e))
 except KeyboardInterrupt:
     terminate('Killed by user.')
-except (PasswordError, Error) as e:
+except (PasswordError, nt.NestedTextError, Error) as e:
     e.terminate()
 done()

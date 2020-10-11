@@ -20,46 +20,41 @@ You download and install *Networth* with::
     pip3 install --user networth
 
 Once installed, you will need at least two configuration files. The 
-configuration files are Python code.  The first file contains settings that are 
-shared between all profiles.  It is ~/.config/networth/config. The remaining 
-files are specific to profiles.  You would generally have one profile for 
-yourself, but you might also have profiles for organizations or people that you 
-are monitoring.
+configuration files are `NestedText <https://nestedtext.readthedocs.io>`_.  The 
+first file contains settings that are shared between all profiles.  It is 
+~/.config/networth/config.  The remaining files are specific to profiles.  You 
+would generally have one profile for yourself, but you might also have profiles 
+for organizations or people that you are monitoring.
+
+Profile files have a .prof suffix, and the name of the profile is the name of 
+the profile file without the suffix.
 
 In general, any setting may be in either the config file or the profile file.  
-However, the following two settings should in the config file:
+However, the following setting should in the config file:
 
-**default_profile**
+**default profile**
 
 A string that contains the name of the profile to use if the one is not 
-explicitly specified on the command line.  The name specified in this setting 
-must also be one of the names specified in *profile_names*.
-
-**profile_names**
-
-A list the contains the names of the known profiles.  For every name given there 
-should be a profile file in the settings directory. Thus, if *me* is one of the 
-profile names, then there should be a file ~/.config/networth/me.prof that 
-contains the settings associated to the *me* profile.
+explicitly specified on the command line.
 
 In addition, the following settings are available:
 
-**avendesora_fieldname**
+**avendesora fieldname**
 
 The name of the *Avendesora* account field that contains the networth 
 information.
 
-**value_updated_subfieldname**
+**value updated subfieldname**
 
 The name of the subfield of *estimated_value* that contains the date the 
 value was last updated.  Typically *updated*.
 
-**max_account_value_age**
+**max account value age**
 
 Number of days. Values that are older than this are called out as being 
 stale.
 
-**date_formats**
+**date formats**
 
 A string that contains the allowed date formats separated by white space.  
 Any spaces is a specific format is replaced by an underscore so that it is 
@@ -73,17 +68,17 @@ By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY',
 'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
 2019', 'Jan 2019', '2019-1-1' and '190101'.
 
-**asset_color**
+**asset color**
 
 The color to used for positive values. May be black, white, blue, cyan, 
 green, red, magenta, or yellow. The default is green.
 
-**debt_color**
+**debt color**
 
 The color to used for negative values. May be black, white, blue, cyan, 
 green, red, magenta, or yellow. The default is red.
 
-**screen_width**
+**screen width**
 
 An integer that contains the width of the screen.
 
@@ -96,12 +91,12 @@ to read.
 
 A list of crytpocurrency tokens that should be available for use.
 
-**coins_max_price_age**
+**coins max price age**
 
 Maximum age in seconds of the coins price caches. If the prices are older than 
 this, the cache is flushed and the prices are updated.
 
-**coin_prices_filename**
+**coin prices filename**
 
 Name of the file used as the cryptocurrency price cache.
 
@@ -109,47 +104,47 @@ Name of the file used as the cryptocurrency price cache.
 
 A list of security symbols that should be available for use.
 
-**secrities_max_price_age**
+**securities max price age**
 
 Maximum age in seconds of the securities price caches. If the prices are older 
 than this, the cache is flushed and the prices are updated.
 
-**security_prices_filename**
+**security prices filename**
 
 Name of the file used as the security price cache.
 
-**iexcloud_api_key** or **iexcloud_api_key_avendesora_account**
+**iexcloud api key** or **iexcloud api key avendesora account**
 
 The security prices are downloaded from IEXcloud.io. You must sign up with them 
 to use this service. The free account is more than sufficient for your needs.  
 Once you sign up you can get an API token, which you give as the value for this 
 field.  This field must be given if you specify securities.  You may specify the 
-API token directly using *iexcloud_api_key* or you can specify the account and 
+API token directly using *iexcloud api key* or you can specify the account and 
 field name for the API key if it is held by *Avendesora* with 
-*iexcloud_api_key_avendesora_account*.
+*iexcloud api key avendesora account*.
 
 **metals**
 
 A list of precious metal tokens that should be available for use.
 
-**metals_max_price_age**
+**metals max price age**
 
 Maximum age in seconds of the metals price caches. If the prices are older than 
 this, the cache is flushed and the prices are updated.
 
-**metal_prices_filename**
+**metal prices filename**
 
 Name of the file used as the precious metal price cache.
 
-**metals_api_key** or **metals_api_key_avendesora_account**
+**metals api key** or **metals api key avendesora account**
 
 The precious metal prices are downloaded from metals-api.com. You must sign up 
 with them to use this service. The free account is generally sufficient for your 
 needs.  Once you sign up you can get an API token, which you give as the value 
 for this field.  This field must be given if you specify precious metals.  You 
-may specify the API token directly using *metals_api_key* or you can specify the 
+may specify the API token directly using *metals api key* or you can specify the 
 account and field name for the API key if it is held by *Avendesora* with 
-*metals_api_key_avendesora_account*.
+*metals api key avendesora account*.
 
 
 Example Configuration Files
@@ -157,32 +152,30 @@ Example Configuration Files
 
 Here is an example *config* file::
 
-    default_profile='me'
-    profile_names = 'me parents'.split()
+    default profile: me
 
     # account value settings
-    avendesora_fieldname = 'estimated_value'
-    value_updated_subfieldname = 'updated'
-    max_account_value_age = 120 # days
-    date_formats = 'MMMM YYYY'
+    avendesora fieldname: estimated_value
+    value updated subfieldname: updated
+    max account value age: 120
+    date formats: MMMM YYYY
 
     # bar settings
-    screen_width = 110
+    screen width: 110
 
     # API token needed to download securities
-    iexcloud_token = 'pk_9eb3acfc7dbe4055a795ff179d46a980'
+    iexcloud token: pk_9eb3acfc7dbe4055a795ff179d46a980
 
 Here is a example profile file::
 
     # account aliases
-    aliases = dict(
-        quickenloans = 'mortgage',
-        wellsfargo = 'wells fargo',
-    )
+    aliases:
+        quickenloans: mortgage
+        wellsfargo: wells fargo
 
     # available symbols
-    coins = 'USD BTC ETH BCH ZEC EOS'.split()
-    securities = 'GOOG AMZN'.split()
+    coins: USD BTC ETH BCH ZEC EOS
+    securities: GOOG AMZN
 
 
 Estimated Values

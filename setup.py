@@ -23,12 +23,14 @@ setup(
         'avendesora>=1.12',
         'docopt',
         'inform>=1.14',
+        'nestedtext',
         'python-gnupg>=0.4.3',
             # Be careful.  There's a package called 'gnupg' that's an 
             # incompatible fork of 'python-gnupg'.  If both are installed, the 
             # user will probably have compatibility issues.
         'quantiphy',
         'quantiphy_eval>=0.3',
+        'voluptuous',
     ],
     python_requires='>=3.6',
     keywords = 'networth'.split(),
