@@ -13,6 +13,7 @@ setup(
     author_email = 'networth@nurdletech.com',
     description = 'Summarize net worth',
     long_description = readme,
+    long_description_content_type = 'text/x-rst',
     url = 'https://github.com/kenkundert/networth',
     download_url = 'https://github.com/kenkundert/networth/tarball/master',
     license = 'GPLv3+',

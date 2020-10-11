@@ -298,7 +298,9 @@ Releases
     | Version: 0.8.0
     | Released: 2020-10-10
 
+**0.8 (2020-10-10)**:
     - Add support for downloading prices of precious metals.
+    - Switch to *NestedText* for the settings files.
 
 **0.7 (2020-03-06)**:
     - Now uses `QuantiPhy Eval <https://github.com/KenKundert/quantiphy_eval>`_ 

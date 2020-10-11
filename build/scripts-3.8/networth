@@ -1,0 +1,807 @@
+#!python
+# Description {{{1
+"""Networth
+
+Show a summary of the networth of the specified person.
+
+Usage:
+    networth [options] [<profile>...]
+
+Options:
+    -a, --all               show all accounts, even those with zero balance
+    -c, --clear-cache       clear the prices cache
+    -i, --insecure          do not check certificate of prices website
+    -p, --prices            show coin and security prices
+    -P, --proxy             connect to the internet through a proxy
+    -s, --sort              sort accounts by value rather than by name
+    -u, --updated           show the account update date rather than breakdown
+
+{available_profiles}
+Settings can be found in: {settings_dir}.
+Typically there is one file for generic settings named 'config' and then one 
+file for each profile whose name is the same as the profile name with a '.prof' 
+suffix.  Each of the files may contain any setting, but those values in 'config' 
+override those built in to the program, and those in the individual profiles 
+override those in 'config'. The following settings are understood. The values 
+are those before an individual profile is applied.
+
+You can also specify an argument of the form AAA=NN where AAA is the name of 
+a security and NN is the number of shared. This amount is added to the account 
+'command line'.
+
+Profile values:
+    default_profile = {default_profile}
+
+Account values:
+    avendesora_fieldname = {avendesora_fieldname}
+    value_updated_subfieldname = {value_updated_subfieldname}
+    date_formats = {date_formats}
+    max_account_value_age = {max_account_value_age}  (in days)
+    aliases = {aliases}
+        (aliases is used to fix account names to make them more readable)
+
+Investment values:
+    coins = {coins}
+    coins_max_price_age = {coins_max_price_age} (seconds)
+    coin_prices_filename = {coin_prices_filename}
+
+    securities = {securities}
+    securities_max_price_age = {securities_max_price_age} (seconds)
+    security_prices_filename = {security_prices_filename}
+
+    metals = {metals}
+    metals_max_price_age = {metals_max_price_age} (seconds)
+    metal_prices_filename = {metal_prices_filename}
+
+Bar graph values:
+    screen_width = {screen_width}
+    asset_color = {asset_color}
+    debt_color = {debt_color}
+
+The prices and log files can be found in {cache_dir}.
+
+A description of how to configure and use this program can be found at 
+<https://avendesora.readthedocs.io/en/latest/api.html#example-net-worth>`_
+"""
+
+# Imports {{{1
+from appdirs import user_config_dir, user_cache_dir
+from avendesora import PasswordGenerator, PasswordError
+import nestedtext as nt
+import voluptuous
+from docopt import docopt
+from inform import (
+    add_culprit, conjoin, display, done, error, fatal, full_stop, get_culprit, 
+    is_collection, is_str, join, narrate, os_error, render, render_bar, 
+    terminate, warn, Color, Error, Inform,
+)
+from math import log
+from operator import itemgetter
+import arrow
+import requests
+from pathlib import Path
+from quantiphy import Quantity, InvalidNumber
+from quantiphy_eval import evaluate, initialize, rm_commas
+
+__version__ = "0.8.0"
+__released__ = "2020-10-10"
+
+# Settings {{{1
+# These can be overridden in ~/.config/networth/config
+prog_name = 'networth'
+config_filename = 'config'
+
+# Avendesora settings {{{2
+default_profile = 'me'
+avendesora_fieldname = 'estimated_value'
+value_updated_subfieldname = 'updated'
+aliases = {}
+
+# cryptocurrency settings (empty coins to disable cryptocurrency support) {{{2
+proxies = dict(
+    # The local socks5 proxy on port 9998.
+    # Use this at TI because they block access to cryptocompare.
+    http='socks5://localhost:9998',
+    https='socks5://localhost:9998',
+)
+coin_prices_filename = 'coins'
+security_prices_filename = 'securities'
+metal_prices_filename = 'metals'
+coins = []
+securities = []
+metals = []
+coins_max_price_age = 10*60       # refresh cache if older than this (seconds)
+securities_max_price_age = 10*60  # refresh cache if older than this (seconds)
+metals_max_price_age = 24*60*60   # refresh cache if older than this (seconds)
+
+# bar settings {{{2
+screen_width = 79
+asset_color = 'green'
+debt_color = 'red'
+    # currently we only colorize the bar because ...
+    # - it is the only way of telling whether value is positive or negative
+    # - trying to colorize the value really messes with the column widths and is 
+    #     not attractive
+
+# date settings {{{2
+date_formats = [
+    'MMMM YYYY',
+    'MMM YYYY',
+    'YYYY-M-D',
+    'YYMMDD',
+]
+max_account_value_age = 120  # days
+
+# Utility functions {{{1
+# interpret date string {{{2
+def to_date(date):
+    for fmt in date_formats:
+        try:
+            return arrow.get(date, fmt)
+        except:
+            pass
+    fmts = ', '.join("'" + fmt + "'" for fmt in date_formats)
+    raise Error(
+        'misformatted date:', date,
+        codicil = f"Choose from one of the following formats: {fmts}.",
+        culprit = get_culprit()
+    )
+
+def to_list(v):
+    # allows list values to be specified with a single string which it split
+    # to form the list.
+    if is_str(v):
+        return v.split()
+    if is_collection(v):
+        return v
+    raise voluptuous.Invalid(
+        'expected list or string that can be split into a list'
+    )
+
+def convert_keys_to_identifiers(d):
+    # allows keys to be specified as individual words, which are joined with
+    # underscores to form the identifier
+    return {'_'.join(k.split()):v for k, v in d.items()}
+
+# define Voluptuous schema for config files {{{2
+schema = voluptuous.Schema(dict(
+    aliases = {str: str},
+    asset_color = str,
+    avendesora_fieldname = str,
+    coin_prices_filename = str,
+    coins = voluptuous.Coerce(to_list),
+    coins_max_price_age = str,
+    date_formats = str,
+    debt_color = str,
+    default_profile = str,
+    iexcloud_api_key_avendesora_account = str,
+    iexcloud_api_key = str,
+    max_account_value_age = voluptuous.Coerce(int),
+    metal_prices_filename = str,
+    metals_api_key_avendesora_account = str,
+    metals_api_key = str,
+    metals = voluptuous.Coerce(to_list),
+    metals_max_price_age = str,
+    screen_width = voluptuous.Coerce(int),
+    securities = voluptuous.Coerce(to_list),
+    securities_max_price_age = voluptuous.Coerce(int),
+    security_prices_filename = str,
+    value_updated_subfieldname = str,
+))
+
+# get the age of an account value {{{2
+def get_age(date):
+    if not date:
+        return None
+    then = to_date(date)
+    age = arrow.now() - then
+    return age.days
+
+
+# colorize text {{{2
+def colorize(value, text = None):
+    if text is None:
+        text = str(value)
+    return debt_color(text) if value < 0 else asset_color(text)
+
+# colored bar {{{2
+def colored_bar(value, width):
+    return colorize(value, render_bar(abs(value), width))
+
+# resolve_value {{{2
+# Evaluate & convert (expression, coin, security, mortgage) to final value.
+def resolve_value(key, value):
+    try:
+        value = evaluate(rm_commas(value))
+    except Exception:
+        try:
+            value = ' '.join(value.split())
+        except AttributeError:
+            pass
+    raw_value = value
+
+    if key in coins:
+        if key in coin_prices:
+            value = Quantity(float(value)*coin_prices[key], coin_prices[key])
+            if key == 'USD':
+                key = 'cash'
+            else:
+                raw_totals[key] = raw_totals.get(key, Quantity(0, key)).add(raw_value)
+                key = 'cryptocurrency'
+        else:
+            value = Quantity(value, 'tokens')
+    elif key in securities:
+        if key in security_prices:
+            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(raw_value))
+            value = Quantity(float(value)*security_prices[key], security_prices[key])
+            key = 'equities'
+        else:
+            value = Quantity(value, 'shares')
+    elif key in metals:
+        if key in metals:
+            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(raw_value))
+            value = Quantity(float(value)*metal_prices[key], '$')
+            key = 'metals'
+        else:
+            value = Quantity(value, 'oz')
+    else:
+        try:
+            value = mortgage_balance(value)
+        except Error as e:
+            if e.unrecognized:
+                try:
+                    value = Quantity(value, '$')
+                except InvalidNumber as e:
+                    raise Error(str(e), culprit=get_culprit(key))
+            else:
+                e.reraise(culprit=get_culprit(key))
+    return key, value
+
+# mortgage_balance {{{2
+def mortgage_balance(description):
+    try:
+        params = dict(pair.split('=') for pair in description.split())
+        principal = Quantity(params['principal'])
+                                 # the principal
+        start = to_date(params['date'])
+                                 # date for which principal was specified
+        payment = Quantity(params['payment'])
+                                 # the monthly payment
+        interest = Quantity(params['rate'])
+                                 # the interest rate in percent
+        interest = interest/100 if interest.units == '%' else interest
+        if 'share' in params:    # share of the loan that is mine (optional)
+            share = Quantity(params['share'], '%')
+            share = share/100 if share.units == '%' else share
+            principal *= share
+            payment *= share
+
+        # useful values
+        rate = interest/12       # the rate of growth per month
+        unit_growth = 1 + rate   # the normalized growth per month
+        now = arrow.now()        # the current date
+        months = (now.year - start.year) * 12 + now.month - start.month
+                                 # periods since the date of the principal
+        growth = unit_growth**months
+
+        # current balance
+        balance = principal*growth + payment*(growth - 1)/rate
+        return Quantity(balance, units='$')
+    except (AttributeError, KeyError, ValueError) as e:
+        raise Error('invalid mortgage description', unrecognized=True)
+
+# QuantiPhy Eval functions {{{2
+# median {{{3
+def median(*args):
+   args = sorted(args)
+   l = len(args)
+   m = l//2
+   if l % 2:
+       return args[m]
+   return (args[m] + args[m-1])/2
+
+# average {{{3
+def average(*args):
+   return sum(args)/len(args)
+
+# my_functions {{{3
+my_functions = dict(
+    median = median,
+    average = average,
+)
+initialize(functions=my_functions)
+
+try:
+    # Initialization {{{1
+    settings_dir = Path(user_config_dir(prog_name))
+    cache_dir = user_cache_dir(prog_name)
+    Quantity.set_prefs(prec='full', strip_radix=True)
+    Inform(logfile=Path(cache_dir, 'log'))
+    display.log = False   # do not log normal output
+    iexcloud_token = None
+    iexcloud_api_key = iexcloud_api_key_avendesora_account = None
+    metals_api_key = metals_api_key_avendesora_account = None
+
+    # Read generic settings {{{1
+    config_filepath = Path(settings_dir, config_filename)
+    if config_filepath.exists():
+        narrate('reading:', config_filepath)
+        settings = config_filepath.read_text()
+        settings = nt.loads(settings)
+        settings = convert_keys_to_identifiers(settings)
+        try:
+            settings = schema(settings)
+        except voluptuous.Invalid as e:
+            raise Error(full_stop(e.msg), culprit=(config_filepath, e.path))
+        locals().update(settings)
+    else:
+        narrate('not found:', config_filepath)
+
+    # Read command line and process options {{{1
+    available = set(p.stem for p in settings_dir.glob('*.prof'))
+    available.add(default_profile)
+    if len(available) > 1:
+        choose_from = f'Choose <profile> from {conjoin(sorted(available))}.'
+        default = f'The default is {default_profile}.'
+        available_profiles = f'{choose_from} {default}\n'
+    else:
+        available_profiles = ''
+
+    cmdline = docopt(__doc__.format(
+        **locals()
+    ))
+    show_updated = cmdline['--updated']
+    if cmdline['--sort']:
+        sort_mode = dict(key=itemgetter(1), reverse=True)  # sort by value
+    else:
+        sort_mode = dict(key=itemgetter(0), reverse=False)  # sort by name
+    args = cmdline['<profile>']
+    extras = {}
+    profile = None
+    use_alt_fieldname = False
+    for arg in args:
+        name, _, num = arg.partition('=')
+        if num:
+            extras[name] = num
+        else:
+            if profile:
+                error('too many profile names, ignored.', culprit=arg)
+            else:
+                use_alt_fieldname = name.endswith('#')
+                profile = name.rstrip('#')
+    if not profile:
+        profile = default_profile
+
+    if profile not in available:
+        fatal(
+            'unknown profile.', choose_from, template=('{} {}', '{}'), 
+            culprit=profile
+        )
+    insecure = cmdline['--insecure']
+    if insecure:
+        requests.packages.urllib3.disable_warnings()
+    use_proxy = cmdline['--proxy']
+    if not use_proxy:
+        proxies = None
+    show_prices = cmdline['--prices']
+    use_caches = not cmdline['--clear-cache']
+
+    # Read profile settings {{{1
+    config_filepath = Path(user_config_dir(prog_name), profile + '.prof')
+    if config_filepath.exists():
+        narrate('reading:', config_filepath)
+        settings = config_filepath.read_text()
+        settings = nt.loads(settings)
+        settings = convert_keys_to_identifiers(settings)
+        try:
+            settings = schema(settings)
+        except voluptuous.Invalid as e:
+            raise Error(e, culprit=config_filepath)
+        locals().update(settings)
+    else:
+        narrate('not found:', config_filepath)
+
+    # Process the settings
+    if is_str(date_formats):
+        date_formats = date_formats.split()
+    date_formats = [fmt.replace('_', ' ') for fmt in date_formats]
+
+    asset_color = Color(asset_color, enable=Color.isTTY())
+    debt_color = Color(debt_color, enable=Color.isTTY())
+
+    # initialize avendesora
+    narrate('running avendesora')
+    pw = PasswordGenerator()
+
+    # Get cryptocurrency prices {{{1
+    try:
+        coin_prices = {}
+        if coins:
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, coin_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < coins_max_price_age
+            if use_caches and cache_valid:
+                contents = prices_cache.read_text()
+                coin_prices = Quantity.extract(contents)
+                narrate('cryptocurrency prices are current:', prices_cache)
+            else:
+                narrate('updating cryptocurrency prices')
+                # download latest asset prices from cryptocompare.com
+                params = dict(
+                    fsyms=','.join(coins),     # from symbols
+                    tsyms='USD',               # to symbols
+                )
+                base_url = 'https://min-api.cryptocompare.com'
+                path = 'data/pricemulti'
+                url = '/'.join([base_url, path])
+                try:
+                    r = requests.get(url, params=params, proxies=proxies)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access cryptocurrency prices:', codicil=str(e))
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('cryptocurrency price download was garbled.')
+                coin_prices = {k: Quantity(v['USD'], '$') for k, v in data.items()}
+
+                if prices_cache:
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in coin_prices.items()
+                    )
+                    prices_cache.write_text(contents)
+                    narrate('updating coin prices:', prices_cache)
+            coin_prices['USD'] = Quantity(1, '$')
+    except Error as e:
+        e.report()
+
+    # Get security prices {{{1
+    try:
+        security_prices = {}
+        if securities:
+            import requests
+
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, security_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < securities_max_price_age
+            if use_caches and cache_valid:
+                contents = prices_cache.read_text()
+                security_prices = Quantity.extract(contents)
+                narrate('security prices are current:', prices_cache)
+            else:
+                narrate('updating security prices')
+                # download latest security prices from iexcloud.io
+                symbols = ','.join(securities)
+                test = False
+                base_url = 'https://cloud.iexapis.com'
+                path = 'stable/stock/market/batch'
+                url = '/'.join([base_url, path])
+                if not iexcloud_api_key:
+                    iexcloud_api_key = str(pw.get_value(iexcloud_api_key_avendesora_account))
+                if not iexcloud_api_key:
+                    if iexcloud_token:
+                        raise Error('iexcloud_token is deprecated, use iexcloud_api_key instead.')
+                    else:
+                        raise Error('IEXcloud.io API access key not available.')
+                params = dict(
+                    #types = 'price',  # apparently price is no longer available for free tier
+                    types = 'quote',
+                    symbols = symbols,
+                    token = iexcloud_api_key,
+                )
+                try:
+                    r = requests.get(url, params=params, proxies=proxies)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access security prices:', codicil=str(e))
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('security price download was garbled.')
+                try:
+                    security_prices = {
+                        #s: Quantity(data[s]['price'], '$')
+                        s: Quantity(data[s]['quote']['latestPrice'], '$')
+                        for s in securities
+                    }
+                except KeyError as e:
+                    error('not available.', culprit=e)
+
+                if prices_cache:
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in security_prices.items()
+                    )
+                    prices_cache.write_text(contents)
+                    narrate('updating security prices:', prices_cache)
+    except Error as e:
+        e.report()
+
+    # Get precious metal prices {{{1
+    try:
+        metal_prices = {}
+        if metals:
+            import requests
+
+            cache_valid = False
+            cache_dir = Path(cache_dir)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            prices_cache = Path(cache_dir, metal_prices_filename)
+            if prices_cache and prices_cache.exists():
+                now = arrow.now()
+                age = now.timestamp - prices_cache.stat().st_mtime
+                cache_valid = age < metals_max_price_age
+            if use_caches and cache_valid:
+                contents = prices_cache.read_text()
+                metal_prices = Quantity.extract(contents)
+                narrate('precious metal prices are current:', prices_cache)
+            else:
+                narrate('updating precious metal prices')
+                # download latest asset prices from cryptocompare.com
+                base_url = 'https://metals-api.com'
+                path = 'api/latest'
+                url = '/'.join([base_url, path])
+                if not metals_api_key:
+                    metals_api_key = str(pw.get_value(metals_api_key_avendesora_account))
+                if not metals_api_key:
+                    raise Error('Metals-API.com API access key not available.')
+                params = dict(
+                    access_key = str(pw.get_value('metals-api:api-key')),
+                    base = 'USD',
+                    symbols = ','.join(metals)
+                )
+                try:
+                    r = requests.get(url, params=params, proxies=proxies)
+                    if r.status_code != requests.codes.ok:
+                        r.raise_for_status()
+                except KeyboardInterrupt:
+                    done()
+                except Exception as e:
+                    # must catch all exceptions as requests.get() can generate 
+                    # a variety based on how it fails, and if the exception is not 
+                    # caught the thread dies.
+                    raise Error('cannot access precious metals prices:', codicil=e)
+
+                try:
+                    data = r.json()
+                except:
+                    raise Error('precious metals price download was garbled.')
+                assert data['base'] == 'USD'
+                assert data['unit'] == 'per ounce'
+                assert data['rates']['USD'] == 1
+                metal_prices = {
+                    k: Quantity(1/float(v), '$/oz')
+                    for k, v in data['rates'].items()
+                    if k != 'USD'
+                }
+                if prices_cache:
+                    contents = '\n'.join(
+                        '{} = {}'.format(k,v.fixed(prec='full'))
+                        for k,v in metal_prices.items()
+                    )
+                    prices_cache.write_text(contents)
+                    narrate('updating metal prices:', prices_cache)
+    except Error as e:
+        e.report()
+
+    # Build account summaries {{{1
+    totals = {}
+    raw_totals = {}
+    accounts = []
+    total_assets = Quantity(0, '$')
+    total_debt = Quantity(0, '$')
+    grand_total = Quantity(0, '$')
+    width = 0
+
+    # accounts in Avendesora {{{2
+    for account in pw.all_accounts():
+
+        # get data {{{3
+        data = None
+        if use_alt_fieldname:
+            data = account.get_composite('_' + avendesora_fieldname)
+        if not data:
+            data = account.get_composite(avendesora_fieldname)
+        if not data:
+            continue
+        if type(data) != dict:
+            error(
+                'expected a dictionary.',
+                culprit=(account_name, avendesora_fieldname)
+            )
+            continue
+
+        # get account name {{{3
+        account_name = account.get_name()
+        account_name = aliases.get(account_name, account_name)
+        account_name = account_name.replace('_', ' ')
+        width = max(width, len(account_name))
+
+        with add_culprit((account_name, avendesora_fieldname)):
+
+            # sum the data {{{3
+            updated = None
+            contents = {}
+            total = Quantity(0, '$')
+            odd_units = False
+            for key, value in data.items():
+                    if key == value_updated_subfieldname:
+                        updated = value
+                        continue
+
+                    key, value = resolve_value(key, value)
+                    if value.units == '$':
+                        total = total.add(value)
+                    else:
+                        odd_units = True
+                    contents[key] = value.add(contents.get(key, 0))
+                    width = max(width, len(key))
+
+            # add to totals
+            for k, v in contents.items():
+                totals[k] = v.add(totals.get(k, 0))
+
+            # generate the account summary {{{3
+            age = get_age(updated)
+            if show_updated and updated:
+                desc = updated
+            else:
+                desc = ', '.join('{}={:.2}'.format(k, v) for k, v in contents.items() if v)
+                if len(contents) == 1 and not odd_units:
+                    desc = list(contents.keys())[0]
+                if not desc:
+                    desc = 'cash'
+                elif not contents:
+                    desc = 'cash'
+                if age and age > max_account_value_age:
+                    desc += f' ({age//30} months old)'
+            summary = join(
+                total, desc.replace('_', ' '),
+                #template=('{:7q} {}', '{:7q}'), remove=(None,'') ksk
+                template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
+            )
+            if total or cmdline['--all']:
+                accounts.append((account_name, total, summary))
+
+            # sum assets and debts {{{3
+            if total > 0:
+                total_assets = total_assets.add(total)
+            else:
+                total_debt = total_debt.add(-total)
+            grand_total = grand_total.add(total)
+
+    # command-line account {{{2
+    account_name = 'command line'
+    width = max(width, len(account_name))
+
+    with add_culprit(account_name):
+        contents = {}
+        total = Quantity(0, '$')
+
+        for key, value in extras.items():
+            # sum the data {{{3
+            total = Quantity(0, '$')
+            odd_units = False
+            key, value = resolve_value(key, value)
+            if value.units == '$':
+                total = total.add(value)
+            else:
+                odd_units = True
+            contents[key] = value.add(contents.get(key, 0))
+            width = max(width, len(key))
+
+        # add to totals
+        for k, v in contents.items():
+            totals[k] = v.add(totals.get(k, 0))
+
+        # generate the account summary {{{3
+        desc = ', '.join('{}={}'.format(k, v) for k, v in contents.items() if v)
+        if len(contents) == 1 and not odd_units:
+            desc = key
+        summary = join(
+            total, desc.replace('_', ' '),
+            #template=('{:7q} {}', '{:7q}'), remove=(None,'') ksk
+            template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
+        )
+        if total:
+            accounts.append((account_name, total, summary))
+
+        # sum assets and debts {{{3
+        if total > 0:
+            total_assets = total_assets.add(total)
+        else:
+            total_debt = total_debt.add(-total)
+        grand_total = grand_total.add(total)
+
+    # Show current prices if requested {{{1
+    if show_prices:
+        fmt = dict(
+            template = ('   {2:>15.1p}: {1:#,.2p}', '   {0}: {1:#,.2p}'),
+            remove = None,
+        )
+        if coin_prices:
+            display('Cryptocurrency Coin Prices:')
+            for k, v in coin_prices.items():
+                if k != 'USD':
+                    display(k, v, raw_totals.get(k), **fmt)
+            display()
+        if security_prices:
+            display('Security Prices:')
+            for k, v in security_prices.items():
+                display(k, v, raw_totals.get(k), **fmt)
+            display()
+        if metal_prices:
+            display('Precious Metal Prices:')
+            for k, v in metal_prices.items():
+                display(k, v, raw_totals.get(k), **fmt)
+            display()
+
+    # Summarize by account {{{1
+    display('By Account:')
+    for name, total, summary in sorted(accounts, **sort_mode):
+        display(f'{name:>{width+2}s}: {summary}')
+
+    # Summarize by investment type {{{1
+    display('\nBy Type:')
+    largest_share = max(abs(v) for v in totals.values() if v.units == '$')
+    barwidth = screen_width - width - 19
+    for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
+        value = totals[asset_type]
+        if value.units != '$':
+            continue
+        share = value/grand_total
+        bar = colored_bar(value/largest_share, barwidth)
+        asset_type = asset_type.replace('_', ' ')
+        #display(f'{asset_type:>{width+2}s}: {value:>7s} {share:>5.1%} {bar}')
+        display(f'{asset_type:>{width+2}s}: {value:10,.0p} {share:>5.1%} {bar}')
+    display(
+        f'\n{"TOTAL":>{width+2}s}:',
+        f'{grand_total:>7.2q} (assets = {total_assets:.2q}, debt = {total_debt:.2q})'
+    )
+
+    # Summarize non-monetary types {{{1
+    show_title = True
+    for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):
+        value = totals[asset_type]
+        if value.units == '$':
+            continue
+        asset_type = asset_type.replace('_', ' ')
+        if show_title:
+            display('\nNon Monetary Assets:')
+            show_title = False
+        display(f'{asset_type:>{width+2}s}: {value:,.0p}')
+
+
+# Handle exceptions {{{1
+except OSError as e:
+    error(os_error(e))
+except KeyboardInterrupt:
+    terminate('Killed by user.')
+except (PasswordError, nt.NestedTextError, Error) as e:
+    e.terminate()
+done()
