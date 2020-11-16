@@ -26,37 +26,37 @@ override those in 'config'. The following settings are understood. The values
 are those before an individual profile is applied.
 
 You can also specify an argument of the form AAA=NN where AAA is the name of 
-a security and NN is the number of shared. This amount is added to the account 
+a security and NN is the number of shares. This amount is added to the account 
 'command line'.
 
 Profile values:
-    default_profile = {default_profile}
+    default profile: {default_profile}
 
 Account values:
-    avendesora_fieldname = {avendesora_fieldname}
-    value_updated_subfieldname = {value_updated_subfieldname}
-    date_formats = {date_formats}
-    max_account_value_age = {max_account_value_age}  (in days)
-    aliases = {aliases}
+    avendesora fieldname: {avendesora_fieldname}
+    value updated subfieldname: {value_updated_subfieldname}
+    date formats: {date_formats}
+    max account value age: {max_account_value_age}  (in days)
+    aliases: {aliases}
         (aliases is used to fix account names to make them more readable)
 
 Investment values:
-    coins = {coins}
-    coins_max_price_age = {coins_max_price_age} (seconds)
-    coin_prices_filename = {coin_prices_filename}
+    coins: {coins}
+    coins max price age: {coins_max_price_age} (seconds)
+    coin prices filename: {coin_prices_filename}
 
-    securities = {securities}
-    securities_max_price_age = {securities_max_price_age} (seconds)
-    security_prices_filename = {security_prices_filename}
+    securities: {securities}
+    securities max price age: {securities_max_price_age} (seconds)
+    security prices filename: {security_prices_filename}
 
-    metals = {metals}
-    metals_max_price_age = {metals_max_price_age} (seconds)
-    metal_prices_filename = {metal_prices_filename}
+    metals: {metals}
+    metals max price age: {metals_max_price_age} (seconds)
+    metal prices filename: {metal_prices_filename}
 
 Bar graph values:
-    screen_width = {screen_width}
-    asset_color = {asset_color}
-    debt_color = {debt_color}
+    screen width: {screen_width}
+    asset color: {asset_color}
+    debt color: {debt_color}
 
 The prices and log files can be found in {cache_dir}.
 
@@ -741,7 +741,10 @@ try:
     # Show current prices if requested {{{1
     if show_prices:
         fmt = dict(
-            template = ('   {2:>15.1p}: {1:#,.2p}', '   {0}: {1:#,.2p}'),
+            template = (
+                '   {2:>15.3p}: {1:#,.2p}/{0}',
+                '   {0:>15}: {1:#,.2p}/{0}'
+            ),
             remove = None,
         )
         if coin_prices:
