@@ -99,7 +99,6 @@ security prices filename:
     Name of the file used as the security price cache.
 
 iexcloud api key:
-
     The security prices are downloaded from IEXcloud.io. You must sign up with 
     them to use this service. The free account is more than sufficient for your 
     needs.  Once you sign up you get an API token, which you give as the value 
