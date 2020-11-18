@@ -32,119 +32,110 @@ the profile file without the suffix.
 In general, any setting may be in either the config file or the profile file.  
 However, the following setting should in the config file:
 
-**default profile**
-
-A string that contains the name of the profile to use if the one is not 
-explicitly specified on the command line.
+default profile:
+    A string that contains the name of the profile to use if the one is not 
+    explicitly specified on the command line.
 
 In addition, the following settings are available:
 
-**avendesora fieldname**
+avendesora fieldname:
+    The name of the *Avendesora* account field that contains the networth 
+    information.
 
-The name of the *Avendesora* account field that contains the networth 
-information.
+value updated subfieldname:
+    The name of the subfield of *estimated_value* that contains the date the 
+    value was last updated.  Typically *updated*.
 
-**value updated subfieldname**
+max account value age:
+    Number of days. Values that are older than this are called out as being 
+    stale.
 
-The name of the subfield of *estimated_value* that contains the date the 
-value was last updated.  Typically *updated*.
+date formats:
+    A string that contains the allowed date formats separated by white space.  
+    Any spaces is a specific format is replaced by an underscore so that it is 
+    not confused as more than one format. For example a format of 'MMMM YYYY' 
+    would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
+    by Arrow.
 
-**max account value age**
+    May also be a list of strings, where each represents a valid date format.  
 
-Number of days. Values that are older than this are called out as being 
-stale.
+    By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
+    'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
+    2019', 'Jan 2019', '2019-1-1' and '190101'.
 
-**date formats**
+asset color:
+    The color to used for positive values. May be black, white, blue, cyan, 
+    green, red, magenta, or yellow. The default is green.
 
-A string that contains the allowed date formats separated by white space.  
-Any spaces is a specific format is replaced by an underscore so that it is 
-not confused as more than one format. For example a format of 'MMMM YYYY' 
-would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
-by Arrow.
+debt color:
+    The color to used for negative values. May be black, white, blue, cyan, 
+    green, red, magenta, or yellow. The default is red.
 
-May also be a list of strings, where each represents a valid date format.  
+screen width:
+    An integer that contains the width of the screen.
 
-By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
-'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
-2019', 'Jan 2019', '2019-1-1' and '190101'.
+aliases:
+    A dictionary that is used to map an account name to something that is easier 
+    to read.
 
-**asset color**
+coins:
+    A list of crytpocurrency tokens that should be available for use.
 
-The color to used for positive values. May be black, white, blue, cyan, 
-green, red, magenta, or yellow. The default is green.
+coins max price age:
+    Maximum age in seconds of the coins price caches. If the prices are older 
+    than this, the cache is flushed and the prices are updated.
 
-**debt color**
+coin prices filename:
+    Name of the file used as the cryptocurrency price cache.
 
-The color to used for negative values. May be black, white, blue, cyan, 
-green, red, magenta, or yellow. The default is red.
+securities:
+    A list of security symbols that should be available for use.
 
-**screen width**
+securities max price age:
+    Maximum age in seconds of the securities price caches. If the prices are 
+    older than this, the cache is flushed and the prices are updated.
 
-An integer that contains the width of the screen.
+security prices filename:
+    Name of the file used as the security price cache.
 
-**aliases**
+iexcloud api key:
 
-A dictionary that is used to map an account name to something that is easier 
-to read.
+    The security prices are downloaded from IEXcloud.io. You must sign up with 
+    them to use this service. The free account is more than sufficient for your 
+    needs.  Once you sign up you get an API token, which you give as the value 
+    for this field.  This field, or the next, must be given if you specify 
+    securities.
 
-**coins**
+iexcloud api key avendesora account:
+    You may place the API key in *Avendesora* and use this key to specify the 
+    account and field name for the API key.
 
-A list of crytpocurrency tokens that should be available for use.
+metals:
+    A list of precious metal tokens that should be available for use.
 
-**coins max price age**
+metals max price age:
+    Maximum age in seconds of the metals price caches. If the prices are older 
+    than this, the cache is flushed and the prices are updated.
 
-Maximum age in seconds of the coins price caches. If the prices are older than 
-this, the cache is flushed and the prices are updated.
+metal prices filename:
+    Name of the file used as the precious metal price cache.
 
-**coin prices filename**
+metals api key:
+    The precious metal prices are downloaded from metals-api.com. You must sign 
+    up with them to use this service. The free account is generally sufficient 
+    for your needs.  Once you sign up you can get an API token, which you give 
+    as the value for this field.  This field, or the next, must be given if you 
+    specify precious metals.
 
-Name of the file used as the cryptocurrency price cache.
+metals api key avendesora account:
+    You may place the API key in *Avendesora* and use this key to specify the 
+    account and field name for the API key.
 
-**securities**
-
-A list of security symbols that should be available for use.
-
-**securities max price age**
-
-Maximum age in seconds of the securities price caches. If the prices are older 
-than this, the cache is flushed and the prices are updated.
-
-**security prices filename**
-
-Name of the file used as the security price cache.
-
-**iexcloud api key** or **iexcloud api key avendesora account**
-
-The security prices are downloaded from IEXcloud.io. You must sign up with them 
-to use this service. The free account is more than sufficient for your needs.  
-Once you sign up you can get an API token, which you give as the value for this 
-field.  This field must be given if you specify securities.  You may specify the 
-API token directly using *iexcloud api key* or you can specify the account and 
-field name for the API key if it is held by *Avendesora* with 
-*iexcloud api key avendesora account*.
-
-**metals**
-
-A list of precious metal tokens that should be available for use.
-
-**metals max price age**
-
-Maximum age in seconds of the metals price caches. If the prices are older than 
-this, the cache is flushed and the prices are updated.
-
-**metal prices filename**
-
-Name of the file used as the precious metal price cache.
-
-**metals api key** or **metals api key avendesora account**
-
-The precious metal prices are downloaded from metals-api.com. You must sign up 
-with them to use this service. The free account is generally sufficient for your 
-needs.  Once you sign up you can get an API token, which you give as the value 
-for this field.  This field must be given if you specify precious metals.  You 
-may specify the API token directly using *metals api key* or you can specify the 
-account and field name for the API key if it is held by *Avendesora* with 
-*metals api key avendesora account*.
+estimated value overrides file:
+    A path to a file of *estimated_value* overrides. Give as a NestedText file 
+    that contains a dictionary of dictionaries.  The keys for the top level are 
+    account names, and the value contains the estimated value dictionary that 
+    would normally be found in the *Avendesora* accounts file.
 
 
 Example Configuration Files

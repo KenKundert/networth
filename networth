@@ -75,6 +75,7 @@ from inform import (
     is_collection, is_str, join, narrate, os_error, render, render_bar, 
     terminate, warn, Color, Error, Inform,
 )
+from shlib import to_path
 from math import log
 from operator import itemgetter
 import arrow
@@ -134,7 +135,7 @@ max_account_value_age = 120  # days
 
 # Utility functions {{{1
 # interpret date string {{{2
-def to_date(date):
+def convert_to_date(date):
     for fmt in date_formats:
         try:
             return arrow.get(date, fmt)
@@ -147,9 +148,19 @@ def to_date(date):
         culprit = get_culprit()
     )
 
-def to_list(v):
-    # allows list values to be specified with a single string which it split
-    # to form the list.
+# interpret path value {{{2
+def convert_to_path(v):
+    # convert to path, if relative it is relative to cwd, resolve leading ~.
+    if is_str(v):
+        return to_path(settings_dir, v)
+    raise voluptuous.Invalid(
+        'expected string that can be interpreted as path'
+    )
+
+# interpret list value {{{2
+# allows list values to be specified with a single string,
+# which it split to form the list.
+def convert_to_list(v):
     if is_str(v):
         return v.split()
     if is_collection(v):
@@ -158,6 +169,21 @@ def to_list(v):
         'expected list or string that can be split into a list'
     )
 
+# interpret text value {{{2
+def convert_to_str(v):
+    if is_str(v):
+        return v
+    raise voluptuous.Invalid('expected text')
+
+# interpret text value {{{2
+def convert_to_int(v):
+    try:
+        if is_str(v):
+            return int(v)
+    except:
+        pass
+    raise voluptuous.Invalid('expected integer')
+
 def convert_keys_to_identifiers(d):
     # allows keys to be specified as individual words, which are joined with
     # underscores to form the identifier
@@ -165,35 +191,36 @@ def convert_keys_to_identifiers(d):
 
 # define Voluptuous schema for config files {{{2
 schema = voluptuous.Schema(dict(
-    aliases = {str: str},
-    asset_color = str,
-    avendesora_fieldname = str,
-    coin_prices_filename = str,
-    coins = voluptuous.Coerce(to_list),
-    coins_max_price_age = str,
-    date_formats = str,
-    debt_color = str,
-    default_profile = str,
-    iexcloud_api_key_avendesora_account = str,
-    iexcloud_api_key = str,
-    max_account_value_age = voluptuous.Coerce(int),
-    metal_prices_filename = str,
-    metals_api_key_avendesora_account = str,
-    metals_api_key = str,
-    metals = voluptuous.Coerce(to_list),
-    metals_max_price_age = str,
-    screen_width = voluptuous.Coerce(int),
-    securities = voluptuous.Coerce(to_list),
-    securities_max_price_age = voluptuous.Coerce(int),
-    security_prices_filename = str,
-    value_updated_subfieldname = str,
+    aliases = {convert_to_str: convert_to_str},
+    asset_color = convert_to_str,
+    avendesora_fieldname = convert_to_str,
+    coin_prices_filename = convert_to_str,
+    coins = convert_to_list,
+    coins_max_price_age = convert_to_str,
+    date_formats = convert_to_str,
+    debt_color = convert_to_str,
+    default_profile = convert_to_str,
+    iexcloud_api_key_avendesora_account = convert_to_str,
+    iexcloud_api_key = convert_to_str,
+    max_account_value_age = convert_to_int,
+    metal_prices_filename = convert_to_str,
+    metals_api_key_avendesora_account = convert_to_str,
+    metals_api_key = convert_to_str,
+    metals = convert_to_list,
+    metals_max_price_age = convert_to_str,
+    screen_width = convert_to_int,
+    securities = convert_to_list,
+    securities_max_price_age = convert_to_int,
+    security_prices_filename = convert_to_str,
+    value_updated_subfieldname = convert_to_str,
+    estimated_value_overrides_file = convert_to_path,
 ))
 
 # get the age of an account value {{{2
 def get_age(date):
     if not date:
         return None
-    then = to_date(date)
+    then = convert_to_date(date)
     age = arrow.now() - then
     return age.days
 
@@ -263,7 +290,7 @@ def mortgage_balance(description):
         params = dict(pair.split('=') for pair in description.split())
         principal = Quantity(params['principal'])
                                  # the principal
-        start = to_date(params['date'])
+        start = convert_to_date(params['date'])
                                  # date for which principal was specified
         payment = Quantity(params['payment'])
                                  # the monthly payment
@@ -321,6 +348,7 @@ try:
     iexcloud_token = None
     iexcloud_api_key = iexcloud_api_key_avendesora_account = None
     metals_api_key = metals_api_key_avendesora_account = None
+    estimated_value_overrides_file = None
 
     # Read generic settings {{{1
     config_filepath = Path(settings_dir, config_filename)
@@ -408,6 +436,12 @@ try:
 
     asset_color = Color(asset_color, enable=Color.isTTY())
     debt_color = Color(debt_color, enable=Color.isTTY())
+
+    # Read estimated value overrides {{{1
+    if estimated_value_overrides_file:
+        estimated_value_overrides = nt.load(estimated_value_overrides_file, top=dict)
+    else:
+        estimated_value_overrides = {}
 
     # initialize avendesora
     narrate('running avendesora')
@@ -625,6 +659,8 @@ try:
         data = None
         if use_alt_fieldname:
             data = account.get_composite('_' + avendesora_fieldname)
+        if not data:
+            data = estimated_value_overrides.get(account.get_name())
         if not data:
             data = account.get_composite(avendesora_fieldname)
         if not data:
