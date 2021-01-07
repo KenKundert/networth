@@ -10,6 +10,7 @@ Usage:
 Options:
     -a, --all               show all accounts, even those with zero balance
     -c, --clear-cache       clear the prices cache
+    -d, --details           show details of account values
     -i, --insecure          do not check certificate of prices website
     -p, --prices            show coin and security prices
     -P, --proxy             connect to the internet through a proxy
@@ -369,7 +370,7 @@ try:
     available = set(p.stem for p in settings_dir.glob('*.prof'))
     available.add(default_profile)
     if len(available) > 1:
-        choose_from = f'Choose <profile> from {conjoin(sorted(available))}.'
+        choose_from = f'Choose from {conjoin(sorted(available))}.'
         default = f'The default is {default_profile}.'
         available_profiles = f'{choose_from} {default}\n'
     else:
@@ -413,6 +414,7 @@ try:
         proxies = None
     show_prices = cmdline['--prices']
     use_caches = not cmdline['--clear-cache']
+    show_details = cmdline['--details']
 
     # Read profile settings {{{1
     config_filepath = Path(user_config_dir(prog_name), profile + '.prof')
@@ -685,18 +687,27 @@ try:
             contents = {}
             total = Quantity(0, '$')
             odd_units = False
+            details = {}
+            keys_differ = False
             for key, value in data.items():
                     if key == value_updated_subfieldname:
                         updated = value
                         continue
 
+                    orig_key = key
                     key, value = resolve_value(key, value)
                     if value.units == '$':
                         total = total.add(value)
                     else:
                         odd_units = True
                     contents[key] = value.add(contents.get(key, 0))
+                    if value > 0:
+                        details[orig_key] = value
+                    if key != orig_key:
+                        keys_differ = True
                     width = max(width, len(key))
+            if not keys_differ:
+                details = None
 
             # add to totals
             for k, v in contents.items():
@@ -722,7 +733,7 @@ try:
                 template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
             )
             if total or cmdline['--all']:
-                accounts.append((account_name, total, summary))
+                accounts.append((account_name, total, summary, details))
 
             # sum assets and debts {{{3
             if total > 0:
@@ -801,12 +812,17 @@ try:
             display()
 
     # Summarize by account {{{1
-    display('By Account:')
-    for name, total, summary in sorted(accounts, **sort_mode):
+    display('Assets By Account:')
+    for name, total, summary, details in sorted(accounts, **sort_mode):
         display(f'{name:>{width+2}s}: {summary}')
+        if show_details and details:
+            for key in details:
+                value = details[key]
+                display(f'{"":>{width+2}s}  {value:10,.0p} {key}')
+
 
     # Summarize by investment type {{{1
-    display('\nBy Type:')
+    display('\nAssets By Type:')
     largest_share = max(abs(v) for v in totals.values() if v.units == '$')
     barwidth = screen_width - width - 19
     for asset_type in sorted(totals, key=lambda k: totals[k], reverse=True):

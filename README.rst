@@ -288,6 +288,7 @@ Releases
     | Released: 2020-11-17
 
     - Add *estimated value overrides file* setting.
+    - Add --details option
 
 **0.8 (2020-10-10)**:
     - Add support for downloading prices of precious metals.
