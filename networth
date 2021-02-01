@@ -904,7 +904,7 @@ try:
             show_title = False
         display(f'{asset_type:>{width+2}s}: {value:,.0p}')
 
-    # Output data
+    # Write data to file {{{1
     if write_data:
         now = arrow.now()
         totals_by_gross = {
