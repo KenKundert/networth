@@ -77,57 +77,38 @@ aliases:
     A dictionary that is used to map an account name to something that is easier 
     to read.
 
-coins:
-    A list of crytpocurrency tokens that should be available for use.
+cryptocompare:
+    A dictionary containing information about cryptocurrency prices that are to 
+    be downloaded from cryptocompare.com.
 
-coins max price age:
-    Maximum age in seconds of the coins price caches. If the prices are older 
-    than this, the cache is flushed and the prices are updated.
+    tokens:
+        A dictionary of crytpocurrency tokens that should be available for use.
+        The key of the dictionary is the token symbol, the value is the category 
+        it should associate with.
 
-coin prices filename:
-    Name of the file used as the cryptocurrency price cache.
+    ttl:
+        Cache time to live.  If the cache is older than this time, it is 
+        refreshed.  Here are example times: 600s, 10m, 6h, 1d.
 
-securities:
-    A list of security symbols that should be available for use.
+    api key:
+        The coin prices are downloaded from cryptocompare.com. Specifying the 
+        API key is optional.  Providing an API key increases your limits, but 
+        limits are generally not a problem for *Networth* because it is run so 
+        infrequently.
 
-securities max price age:
-    Maximum age in seconds of the securities price caches. If the prices are 
-    older than this, the cache is flushed and the prices are updated.
+    api key account field:
+        You may place the API key in *Avendesora* and use this key to specify the 
+        account and field name for the API key.
 
-security prices filename:
-    Name of the file used as the security price cache.
+iexcloud:
+    A dictionary containing information about security prices that are to be 
+    downloaded from iexcloud.io.  This dictionary takes the same fields as 
+    *cryptocompare*.
 
-iexcloud api key:
-    The security prices are downloaded from IEXcloud.io. You must sign up with 
-    them to use this service. The free account is more than sufficient for your 
-    needs.  Once you sign up you get an API token, which you give as the value 
-    for this field.  This field, or the next, must be given if you specify 
-    securities.
-
-iexcloud api key avendesora account:
-    You may place the API key in *Avendesora* and use this key to specify the 
-    account and field name for the API key.
-
-metals:
-    A list of precious metal tokens that should be available for use.
-
-metals max price age:
-    Maximum age in seconds of the metals price caches. If the prices are older 
-    than this, the cache is flushed and the prices are updated.
-
-metal prices filename:
-    Name of the file used as the precious metal price cache.
-
-metals api key:
-    The precious metal prices are downloaded from metals-api.com. You must sign 
-    up with them to use this service. The free account is generally sufficient 
-    for your needs.  Once you sign up you can get an API token, which you give 
-    as the value for this field.  This field, or the next, must be given if you 
-    specify precious metals.
-
-metals api key avendesora account:
-    You may place the API key in *Avendesora* and use this key to specify the 
-    account and field name for the API key.
+metals api:
+    A dictionary containing information about precious metals prices that are to 
+    be downloaded from metals-api.com.  This dictionary takes the same fields as 
+    *cryptocompare*.
 
 estimated value overrides file:
     A path to a file of *estimated_value* overrides. Give as a NestedText file 
@@ -281,6 +262,26 @@ only need update mortgages if you decide to change the payment amount in order
 to pay off the loan faster.
 
 
+History
+-------
+
+If you would like to be able to plot your networth over time you run the 
+following regularly::
+
+    networth -w <profile>
+
+Each time you do, the networth values are added to a data file 
+(~/.local/share/networth/<profile>.nt).
+
+You can then plot the historical values using::
+
+    plot-networth <name>...
+
+You can get a list of the values you can plot using::
+
+    plot-networth -l
+
+
 Releases
 --------
 **Latest Development Version**:
@@ -289,6 +290,9 @@ Releases
 
     - Add *estimated value overrides file* setting.
     - Add --details option
+    - Add --write-data option
+    - Add plot-networth command
+    - Allow categories to be specified for downloaded token prices.
 
 **0.8 (2020-10-10)**:
     - Add support for downloading prices of precious metals.

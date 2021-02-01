@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+# Description {{{1
+"""Plot Networth
+
+Plot historical networth.
+
+Usage:
+    plot-networth [options] [<name>...]
+
+Options:
+    -p <profile>, --profile <profile>   profile to use
+    -l, --list                          list available values
+    -a, --accounts                      plot all accounts
+    -t, --types                         plot all asset types
+    -g, --gross                         plot gross and net values
+
+{available_profiles}
+"""
+
+try:
+    # Imports {{{1
+    from appdirs import user_config_dir, user_data_dir
+    import nestedtext as nt
+    from docopt import docopt
+    from inform import (
+        columns, conjoin, display, done, error, fatal, os_error, terminate, Error
+    )
+    import arrow
+    from pathlib import Path
+    from quantiphy import Quantity
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+
+    __version__ = "0.8.1"
+    __released__ = "2020-11-17"
+
+    # Settings {{{1
+    # These can be overridden in ~/.config/networth/config
+    prog_name = 'networth'
+    config_filename = 'config'
+    default_profile = None
+
+# Initialization {{{1
+    settings_dir = Path(user_config_dir(prog_name))
+    Quantity.set_prefs(prec='full', strip_radix=True)
+
+    # Read generic settings {{{1
+    config_filepath = Path(settings_dir, config_filename)
+    if config_filepath.exists():
+        settings = config_filepath.read_text()
+        settings = nt.loads(settings)
+
+    # Read command line and process options {{{1
+    available = set(p.stem for p in settings_dir.glob('*.prof'))
+    if len(available) > 1:
+        choose_from = f'Choose from {conjoin(sorted(available))}.'
+        default = f'The default is {default_profile}.'
+        available_profiles = f'{choose_from} {default}\n'
+    else:
+        available_profiles = ''
+
+    cmdline = docopt(__doc__.format(
+        **locals()
+    ))
+    profile = cmdline['--profile'].rstrip('#') if cmdline['--profile'] else None
+    args = cmdline['<name>']
+    if not profile:
+        profile = settings.get('default profile', default_profile)
+
+    if profile not in available:
+        fatal(
+            'unknown profile.', choose_from, template=('{} {}', '{}'),
+            culprit=profile
+        )
+
+    # Read data file {{{1
+    data_filepath = Path(user_data_dir(prog_name), profile + '.nt')
+    data = nt.load(data_filepath)
+    waves = {}
+    accounts = set()
+    types = set()
+    gross = set()
+    for date, values in data.items():
+        date = arrow.get(date)
+        for kind, values in values.items():
+            for name, value in values.items():
+                value = Quantity(value)
+                if value.units == '$':
+                    if kind == 'by type':
+                        types.add('-'.join(name.split()))
+                    elif kind == 'by account':
+                        accounts.add('-'.join(name.split()))
+                    else:
+                        gross.add('-'.join(name.split()))
+                    ordinates = waves.get((name, 'ordinate'), [])
+                    abscissas = waves.get((name, 'abscissa'), [])
+                    ordinates.append(value)
+                    abscissas.append(date)
+                    waves[(name, 'ordinate')] = ordinates
+                    waves[(name, 'abscissa')] = abscissas
+
+    if cmdline['--list']:
+        display('Accounts:')
+        display(columns(sorted(accounts)))
+        display()
+        display('Types:')
+        display(columns(sorted(types)))
+        display()
+        display('Gross Values:')
+        display(columns(sorted(gross)))
+        done()
+    args = set(args)
+    if cmdline['--accounts']:
+        args.update(accounts)
+    if cmdline['--types']:
+        args.update(types)
+    if cmdline['--gross']:
+        args.update(gross)
+    args = sorted(args)
+    if not args:
+        args = ['net-worth']
+
+    # Plot values {{{1
+    figure = plt.figure()
+    axis = figure.add_subplot(111)
+    trace = None
+    for arg in args:
+        name = arg.replace('-', ' ')
+        try:
+            trace, = axis.plot_date(
+                waves[(name, 'abscissa')],
+                waves[(name, 'ordinate')],
+                linestyle='-', marker=None
+            )
+            trace.set_label(name)
+        except KeyError as e:
+            error('unknown.', culprit=e.args[0][0])
+    if trace:
+        formatter = FuncFormatter(lambda v, p: Quantity(v, '$'))
+        axis.yaxis.set_major_formatter(formatter)
+        axis.legend()
+        #axis.set_title('Worth')
+        plt.show()
+    else:
+        error('nothing to plot.')
+
+# Handle exceptions {{{1
+except OSError as e:
+    error(os_error(e))
+except KeyboardInterrupt:
+    terminate('Killed by user.')
+except (nt.NestedTextError, Error) as e:
+    e.terminate()
+done()

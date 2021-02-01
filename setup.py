@@ -17,7 +17,7 @@ setup(
     url = 'https://github.com/kenkundert/networth',
     download_url = 'https://github.com/kenkundert/networth/tarball/master',
     license = 'GPLv3+',
-    scripts = 'networth'.split(),
+    scripts = 'networth plot-networth'.split(),
     install_requires = [
         'appdirs',
         'arrow',
