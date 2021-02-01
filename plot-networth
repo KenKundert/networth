@@ -82,7 +82,8 @@ try:
     types = set()
     gross = set()
     for date, values in data.items():
-        date = arrow.get(date)
+        date = arrow.get(date).naive
+            # use naive to defeat matplotlibs desire to use UTC
         for kind, values in values.items():
             for name, value in values.items():
                 value = Quantity(value)

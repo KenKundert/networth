@@ -66,6 +66,9 @@ aliases = {}
 voluptuous_error_msg_mapings = {
     'extra keys not allowed': 'unknown key',
 }
+cryptocompare = {}
+iexcloud = {}
+metals_api = {}
 
 # Avendesora settings {{{2
 avendesora_fieldname = 'estimated_value'
