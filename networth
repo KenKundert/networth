@@ -63,14 +63,6 @@ prog_name = 'networth'
 config_filename = 'config'
 default_profile = None
 aliases = {}
-voluptuous_error_msg_mapings = {
-    'extra keys not allowed': 'unknown key',
-}
-cryptocompare = {}
-iexcloud = {}
-metals_api = {}
-
-# Avendesora settings {{{2
 avendesora_fieldname = 'estimated_value'
 value_updated_subfieldname = 'updated'
 
@@ -84,12 +76,21 @@ proxies = dict(
 coin_prices_filename = 'coins'
 security_prices_filename = 'securities'
 metal_prices_filename = 'metals'
-coins = {}
-securities = {}
-metals = {}
 coins_time_to_live = 10*60       # refresh cache if older than this (seconds)
 securities_time_to_live = 10*60  # refresh cache if older than this (seconds)
 metals_time_to_live = 24*60*60   # refresh cache if older than this (seconds)
+
+# Globals {{{1
+voluptuous_error_msg_mapings = {
+    'extra keys not allowed': 'unknown key',
+}
+cryptocompare = {}
+iexcloud = {}
+metals_api = {}
+coins = {}
+securities = {}
+metals = {}
+now = arrow.now()
 
 # bar settings {{{2
 screen_width = 79
@@ -229,7 +230,7 @@ def get_age(date):
     if not date:
         return None
     then = convert_to_date(date)
-    age = arrow.now() - then
+    age = now - then
     return age.days
 
 
@@ -316,7 +317,6 @@ def mortgage_balance(description):
         # useful values
         rate = interest/12       # the rate of growth per month
         unit_growth = 1 + rate   # the normalized growth per month
-        now = arrow.now()        # the current date
         months = (now.year - start.year) * 12 + now.month - start.month
                                  # periods since the date of the principal
         growth = unit_growth**months
@@ -368,8 +368,7 @@ try:
     config_filepath = Path(settings_dir, config_filename)
     if config_filepath.exists():
         narrate('reading:', config_filepath)
-        settings = config_filepath.read_text()
-        settings = nt.loads(settings)
+        settings = nt.load(config_filepath, top=dict)
         settings = convert_keys_to_identifiers(settings)
         try:
             settings = schema(settings)
@@ -442,8 +441,7 @@ try:
     config_filepath = Path(user_config_dir(prog_name), profile + '.prof')
     if config_filepath.exists():
         narrate('reading:', config_filepath)
-        settings = config_filepath.read_text()
-        settings = nt.loads(settings)
+        settings = nt.load(config_filepath, top=dict)
         settings = convert_keys_to_identifiers(settings)
         try:
             settings = schema(settings)
@@ -485,7 +483,6 @@ try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             prices_cache = Path(cache_dir, coin_prices_filename)
             if prices_cache and prices_cache.exists():
-                now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
                 cache_valid = age < coins_time_to_live
             if use_caches and cache_valid:
@@ -552,7 +549,6 @@ try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             prices_cache = Path(cache_dir, security_prices_filename)
             if prices_cache and prices_cache.exists():
-                now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
                 cache_valid = age < securities_time_to_live
             if use_caches and cache_valid:
@@ -627,7 +623,6 @@ try:
             cache_dir.mkdir(parents=True, exist_ok=True)
             prices_cache = Path(cache_dir, metal_prices_filename)
             if prices_cache and prices_cache.exists():
-                now = arrow.now()
                 age = now.timestamp - prices_cache.stat().st_mtime
                 cache_valid = age < metals_time_to_live
             if use_caches and cache_valid:
@@ -763,6 +758,8 @@ try:
 
             # generate the account summary {{{3
             age = get_age(updated)
+            if age < 0:
+                warn('updated date in the future.', culprit=account_name)
             if show_updated and updated:
                 desc = updated
             else:
@@ -909,7 +906,6 @@ try:
 
     # Write data to file {{{1
     if write_data:
-        now = arrow.now()
         totals_by_gross = {
             'assets': total_assets,
             'debt': total_debt,
