@@ -63,6 +63,9 @@ prog_name = 'networth'
 config_filename = 'config'
 default_profile = None
 aliases = {}
+voluptuous_error_msg_mapings = {
+    'extra keys not allowed': 'unknown key',
+}
 
 # Avendesora settings {{{2
 avendesora_fieldname = 'estimated_value'
@@ -368,7 +371,10 @@ try:
         try:
             settings = schema(settings)
         except voluptuous.Invalid as e:
-            raise Error(full_stop(e.msg), culprit=(config_filepath, e.path))
+            msg = voluptuous_error_msg_mapings.get(e.msg, e.msg)
+            paths = '.'.join(e.path)
+            msg = f'{paths}: {msg}'
+            raise Error(full_stop(msg), culprit=config_filepath)
         locals().update(settings)
     else:
         narrate('not found:', config_filepath)
@@ -439,7 +445,10 @@ try:
         try:
             settings = schema(settings)
         except voluptuous.Invalid as e:
-            raise Error(e, culprit=config_filepath)
+            msg = voluptuous_error_msg_mapings.get(e.msg, e.msg)
+            paths = '.'.join(e.path)
+            msg = f'{paths}: {msg}'
+            raise Error(full_stop(msg), culprit=config_filepath)
         locals().update(settings)
     else:
         narrate('not found:', config_filepath)
@@ -922,6 +931,4 @@ except KeyboardInterrupt:
     terminate('Killed by user.')
 except (PasswordError, nt.NestedTextError, Error) as e:
     e.terminate()
-except voluptuous.Invalid as e:
-    fatal(full_stop(e.msg), culprit=e.path)
 done()

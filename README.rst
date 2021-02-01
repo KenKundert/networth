@@ -133,9 +133,6 @@ Here is an example *config* file::
     # bar settings
     screen width: 110
 
-    # API token needed to download securities
-    iexcloud token: pk_9eb3acfc7dbe4055a795ff179d46a980
-
 Here is a example profile file::
 
     # account aliases
@@ -143,9 +140,19 @@ Here is a example profile file::
         quickenloans: mortgage
         wellsfargo: wells fargo
 
-    # available symbols
-    coins: USD BTC ETH BCH ZEC EOS
-    securities: GOOG AMZN
+    # cryptocurrency prices
+    cryptocompare:
+        tokens:
+            USD: cash
+            BTC: cryptocurrency
+            ETH: cryptocurrency
+
+    # securities prices
+    iexcloud:
+        api key: pk_9eb3acfc7dbe4055a795ff179d46a980
+        tokens:
+            GOOG: equities
+            AMZN: equities
 
 
 Estimated Values
@@ -265,7 +272,7 @@ to pay off the loan faster.
 History
 -------
 
-If you would like to be able to plot your networth over time you run the 
+If you would like to be able to plot your net worth over time you run the 
 following regularly::
 
     networth -w <profile>
