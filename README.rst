@@ -1,8 +1,8 @@
 Networth: Summarize Your Net Worth
 ==================================
 
-| Version: 0.8.1
-| Released: 2020-11-17
+| Version: 0.8.2
+| Released: 2021-01-31
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
 generate a summary of your networth. *Networth* reads *estimated_value* fields 
@@ -285,8 +285,8 @@ You can get a list of the values you can plot using::
 Releases
 --------
 **Latest Development Version**:
-    | Version: 0.8.1
-    | Released: 2020-11-17
+    | Version: 0.8.2
+    | Released: 2021-01-31
 
     - Add *estimated value overrides file* setting.
     - Add --details option
