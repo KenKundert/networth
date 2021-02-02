@@ -758,7 +758,9 @@ try:
 
             # generate the account summary {{{3
             age = get_age(updated)
-            if age < 0:
+            if age is None:
+                warn('no updated date.', culprit=account_name)
+            elif age < 0:
                 warn('updated date in the future.', culprit=account_name)
             if show_updated and updated:
                 desc = updated
