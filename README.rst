@@ -82,6 +82,9 @@ cryptocompare:
     A dictionary containing information about cryptocurrency prices that are to 
     be downloaded from cryptocompare.com.
 
+    To avoid caching issues it is recommended that *cryptocompare* files be 
+    placed in the shared *config* file if multiple profiles need it.
+
     tokens:
         A dictionary of crytpocurrency tokens that should be available for use.
         The key of the dictionary is the token symbol, the value is the category 
@@ -106,10 +109,16 @@ iexcloud:
     downloaded from iexcloud.io.  This dictionary takes the same fields as 
     *cryptocompare*.
 
+    To avoid caching issues it is recommended that *iexcloud* files be placed in 
+    the shared *config* file if multiple profiles need it.
+
 metals api:
     A dictionary containing information about precious metals prices that are to 
     be downloaded from metals-api.com.  This dictionary takes the same fields as 
     *cryptocompare*.
+
+    To avoid caching issues it is recommended that *metals* files be placed in 
+    the shared *config* file if multiple profiles need it.
 
 estimated value overrides file:
     A path to a file of *estimated_value* overrides. Give as a NestedText file 
