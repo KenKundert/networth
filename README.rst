@@ -50,11 +50,12 @@ max account value age:
     stale.
 
 date formats:
-    A string that contains the allowed date formats separated by white space.  
-    Any spaces is a specific format is replaced by an underscore so that it is 
-    not confused as more than one format. For example a format of 'MMMM YYYY' 
-    would be represented as 'MMMM_YYYY'. The formats allowed are those supported 
-    by Arrow.
+    The list of allowed date formats. May be specified as a list or as a string
+    string that contains the allowed date formats separated by white space.  Any 
+    spaces is a specific format is replaced by an underscore so that it is not 
+    confused as more than one format. For example a format of 'MMMM YYYY' would 
+    be represented as 'MMMM_YYYY'. The formats allowed are those supported by 
+    Arrow.
 
     May also be a list of strings, where each represents a valid date format.  
 
@@ -128,7 +129,7 @@ Here is an example *config* file::
     avendesora fieldname: estimated_value
     value updated subfieldname: updated
     max account value age: 120
-    date formats: MMMM YYYY
+    date formats: M/D/YY M/D/YYYY
 
     # bar settings
     screen width: 110
@@ -153,6 +154,7 @@ Here is a example profile file::
         tokens:
             GOOG: equities
             AMZN: equities
+            GBTC: cryptocurrency
 
 
 Estimated Values
@@ -225,7 +227,7 @@ half share can be indicated as 50% or 0.5.  For example::
                 payment=$1,500.00
                 rate=4.375%
                 share=50%
-            '''
+            ''',
         )
 
 the key=value pairs can be separated by any white space, but there must be no

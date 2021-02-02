@@ -198,7 +198,7 @@ schema = voluptuous.Schema(dict(
     aliases = {convert_to_str: convert_to_str},
     asset_color = convert_to_color,
     avendesora_fieldname = convert_to_str,
-    date_formats = convert_to_str,
+    date_formats = convert_to_list,
     debt_color = convert_to_color,
     default_profile = convert_to_str,
     max_account_value_age = convert_to_int,
@@ -352,6 +352,7 @@ try:
     # Initialization {{{1
     settings_dir = Path(user_config_dir(prog_name))
     cache_dir = user_cache_dir(prog_name)
+    mkdir(cache_dir)
     Quantity.set_prefs(prec='full', strip_radix=True)
     inform = Inform(logfile=Path(cache_dir, 'log'))
     display.log = False   # do not log normal output
@@ -455,8 +456,6 @@ try:
         narrate('not found:', config_filepath)
 
     # Process the settings
-    if is_str(date_formats):
-        date_formats = date_formats.split()
     date_formats = [fmt.replace('_', ' ') for fmt in date_formats]
 
     asset_color = Color(asset_color, enable=Color.isTTY())
@@ -758,9 +757,7 @@ try:
 
             # generate the account summary {{{3
             age = get_age(updated)
-            if age is None:
-                warn('no updated date.', culprit=account_name)
-            elif age < 0:
+            if age and age < 0:
                 warn('updated date in the future.', culprit=account_name)
             if show_updated and updated:
                 desc = updated
