@@ -13,6 +13,8 @@ Options:
     -a, --accounts                      plot all accounts
     -t, --types                         plot all asset types
     -g, --gross                         plot gross and net values
+    -s <file>, --svg <file>             produce plot as SVG file
+                                        rather than display it
 
 {available_profiles}
 """
@@ -28,6 +30,7 @@ try:
     import arrow
     from pathlib import Path
     from quantiphy import Quantity
+    import matplotlib
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     from matplotlib.ticker import FuncFormatter, NullFormatter
@@ -64,6 +67,7 @@ try:
         **locals()
     ))
     profile = cmdline['--profile'].rstrip('#') if cmdline['--profile'] else None
+    svg_file = cmdline['--svg']
     args = cmdline['<name>']
     if not profile:
         profile = settings.get('default profile', default_profile)
@@ -123,6 +127,8 @@ try:
         args = ['net']
 
     # Plot values {{{1
+    if svg_file:
+        matplotlib.use('SVG')
     figure = plt.figure()
     axis = figure.add_subplot(111)
     trace = None
@@ -142,7 +148,10 @@ try:
         axis.yaxis.set_major_formatter(formatter)
         axis.legend()
         #axis.set_title('Worth')
-        plt.show()
+        if svg_file:
+            plt.savefig(svg_file)
+        else:
+            plt.show()
     else:
         error('nothing to plot.')
 

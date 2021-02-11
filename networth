@@ -66,31 +66,25 @@ aliases = {}
 avendesora_fieldname = 'estimated_value'
 value_updated_subfieldname = 'updated'
 
-# cryptocurrency settings (empty coins to disable cryptocurrency support) {{{2
+# define proxies {{{2
 proxies = dict(
-    # The local socks5 proxy on port 9998.
-    # Use this at TI because they block access to cryptocompare.
+    # assumes socks5 proxy available on on port 9998.
+    # use this at TI because they block access to cryptocompare.
     http='socks5://localhost:9998',
     https='socks5://localhost:9998',
 )
-coin_prices_filename = 'coins'
-security_prices_filename = 'securities'
-metal_prices_filename = 'metals'
-coins_time_to_live = 10*60       # refresh cache if older than this (seconds)
-securities_time_to_live = 10*60  # refresh cache if older than this (seconds)
-metals_time_to_live = 24*60*60   # refresh cache if older than this (seconds)
+proxies = dict()
 
 # Globals {{{1
 voluptuous_error_msg_mapings = {
     'extra keys not allowed': 'unknown key',
 }
-cryptocompare = {}
-iexcloud = {}
-metals_api = {}
-coins = {}
-securities = {}
-metals = {}
 now = arrow.now()
+kind_to_units = dict(
+    cryptocurrency = 'tokens',
+    securities = 'shares',
+    metals = 'oz',
+)
 
 # bar settings {{{2
 screen_width = 79
@@ -110,7 +104,8 @@ date_formats = [
 ]
 max_account_value_age = 120  # days
 
-# Utility functions {{{1
+
+# Utility functions and classes {{{1
 # interpret date string {{{2
 def convert_to_date(date):
     for fmt in date_formats:
@@ -193,37 +188,6 @@ def convert_keys_to_identifiers(d):
         return d
     return {'_'.join(k.split()):convert_keys_to_identifiers(v) for k, v in d.items()}
 
-# define Voluptuous schema for config files {{{2
-schema = voluptuous.Schema(dict(
-    aliases = {convert_to_str: convert_to_str},
-    asset_color = convert_to_color,
-    avendesora_fieldname = convert_to_str,
-    date_formats = convert_to_list,
-    debt_color = convert_to_color,
-    default_profile = convert_to_str,
-    max_account_value_age = convert_to_int,
-    screen_width = convert_to_int,
-    value_updated_subfieldname = convert_to_str,
-    estimated_value_overrides_file = convert_to_path,
-    cryptocompare = dict(
-        api_key = convert_to_str,
-        api_key_account_field = convert_to_str,
-        ttl = convert_to_seconds,
-        tokens = convert_to_dict,
-    ),
-    iexcloud = dict(
-        api_key = convert_to_str,
-        api_key_account_field = convert_to_str,
-        ttl = convert_to_seconds,
-        tokens = convert_to_dict,
-    ),
-    metals_api = dict(
-        api_key = convert_to_str,
-        api_key_account_field = convert_to_str,
-        ttl = convert_to_seconds,
-        tokens = convert_to_dict,
-    ),
-))
 
 # get the age of an account value {{{2
 def get_age(date):
@@ -255,33 +219,16 @@ def resolve_value(key, value):
         except AttributeError:
             pass
 
-    if key in coins:
-        if key in coin_prices:
+    if key in tokens:
+        if key in prices:
             raw_totals[key] = raw_totals.get(key, Quantity(0, key)).add(value)
             value = Quantity(
-                float(value)*coin_prices[key],
-                coin_prices[key]
+                float(value)*prices[key],
+                prices[key]
             )
-            key = coins[key]
+            key = tokens[key]
         else:
-            value = Quantity(value, 'tokens')
-    elif key in securities:
-        if key in security_prices:
-            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(value))
-            value = Quantity(
-                float(value)*security_prices[key],
-                security_prices[key]
-            )
-            key = securities[key]
-        else:
-            value = Quantity(value, 'shares')
-    elif key in metals:
-        if key in metal_prices:
-            raw_totals[key] = raw_totals.get(key, Quantity(0, key).add(value))
-            value = Quantity(float(value)*metal_prices[key], '$')
-            key = metals[key]
-        else:
-            value = Quantity(value, 'oz')
+            value = Quantity(value, kind_to_units.get(tokens[key], 'each'))
     else:
         try:
             value = mortgage_balance(value)
@@ -348,13 +295,299 @@ my_functions = dict(
 )
 initialize(functions=my_functions)
 
+# Dollars class {{{2
+class Dollars(Quantity):
+    units = '$'
+    form = 'fixed'
+    prec = 2
+    strip_zeros = False
+    show_commas = True
+
+
+# Data Service classes {{{1
+# DataService class {{{2
+class DataService:
+    def __init__(self, tokens, api_key=None, api_key_account=None, ttl=600):
+        self.tokens = tokens
+        if api_key:
+            self.api_key = api_key
+        elif api_key_account:
+            self.api_key = str(pw.get_value(api_key_account))
+        else:
+            self.api_key = None
+        self.ttl = ttl
+
+    @classmethod
+    def services(cls):
+        for sub in cls.__subclasses__():
+            yield sub
+
+    @classmethod
+    def get_service(cls, name):
+        for sub in cls.__subclasses__():
+            if name == sub.NAME:
+                return sub
+
+
+# CryptoCompare class {{{2
+class CryptoCompare(DataService):
+    NAME = 'cryptocompare'
+
+    def get_prices(self):
+        if not self.tokens:
+            return {}
+
+        cache_valid = False
+        prices_cache = cache_dir / self.NAME
+        if prices_cache.exists():
+            age = now.timestamp - prices_cache.stat().st_mtime
+            cache_valid = age < self.ttl
+        if use_caches and cache_valid:
+            narrate('cryptocompare prices are current:', prices_cache)
+            contents = prices_cache.read_text()
+            return Quantity.extract(contents)
+        else:
+            # download latest asset prices from cryptocompare.com
+            narrate('Updating cryptocompare prices.')
+            params = cull(dict(
+                fsyms = ','.join(self.tokens.keys()),   # from symbols
+                tsyms = 'USD',                          # to symbols
+                api_key = self.api_key,
+            ))
+            base_url = 'https://min-api.cryptocompare.com'
+            path = 'data/pricemulti'
+            url = '/'.join([base_url, path])
+            try:
+                r = requests.get(url, params=params, proxies=proxies)
+                if r.status_code != requests.codes.ok:
+                    r.raise_for_status()
+            except KeyboardInterrupt:
+                done()
+            except Exception as e:
+                # must catch all exceptions as requests.get() can generate 
+                # a variety based on how it fails, and if the exception is not 
+                # caught the thread dies.
+                raise Error('Cannot access cryptocompare prices.', codicil=e)
+
+            try:
+                data = r.json()
+            except:
+                raise Error('cryptocompare price download was garbled.')
+            prices = {k: Dollars(v['USD']) for k, v in data.items()}
+
+            if prices_cache:
+                contents = '\n'.join(
+                    '{} = {}'.format(k,v.fixed(prec='full'))
+                    for k,v in prices.items()
+                )
+                prices_cache.write_text(contents)
+                narrate('Writing cryptocompare prices to cache:', prices_cache)
+            return prices
+
+# IexCloud class {{{2
+class IexCloud(DataService):
+    NAME = 'iexcloud'
+
+    def get_prices(self):
+        if not self.tokens:
+            return {}
+
+        cache_valid = False
+        prices_cache = cache_dir / self.NAME
+        if prices_cache and prices_cache.exists():
+            age = now.timestamp - prices_cache.stat().st_mtime
+            cache_valid = age < self.ttl
+        if use_caches and cache_valid:
+            narrate('iexcloud prices are current:', prices_cache)
+            contents = prices_cache.read_text()
+            return Quantity.extract(contents)
+        else:
+            # download latest iexcloud prices from iexcloud.io
+            narrate('updating iexcloud prices')
+            symbols = ','.join(self.tokens.keys())
+            base_url = 'https://cloud.iexapis.com'
+            path = 'stable/stock/market/batch'
+            url = '/'.join([base_url, path])
+            if not self.api_key:
+                raise Error('iexcloud API access key not available.')
+            params = dict(
+                #types = 'price',  # apparently price is no longer available for free tier
+                types = 'quote',
+                symbols = symbols,
+                token = self.api_key,
+            )
+            try:
+                r = requests.get(url, params=params, proxies=proxies)
+                if r.status_code != requests.codes.ok:
+                    r.raise_for_status()
+            except KeyboardInterrupt:
+                done()
+            except Exception as e:
+                # must catch all exceptions as requests.get() can generate 
+                # a variety based on how it fails, and if the exception is not 
+                # caught the thread dies.
+                raise Error('cannot access iexcloud prices.', codicil=e)
+
+            try:
+                data = r.json()
+            except:
+                raise Error('iexcloud price download was garbled.')
+            try:
+                prices = {
+                    s: Dollars(data[s]['quote']['latestPrice'])
+                    for s in self.tokens.keys()
+                }
+            except KeyError as e:
+                error('not available.', culprit=e)
+
+            if prices_cache:
+                contents = '\n'.join(
+                    '{} = {}'.format(k,v.fixed(prec='full'))
+                    for k,v in prices.items()
+                )
+                prices_cache.write_text(contents)
+                narrate('updating iexcloud prices:', prices_cache)
+            return prices
+
+# MetalsAPI class {{{2
+class MetalsAPI(DataService):
+    NAME = 'metals_api'
+
+    def get_prices(self):
+        if not self.tokens:
+            return {}
+
+        cache_valid = False
+        prices_cache = cache_dir / self.NAME
+        if prices_cache and prices_cache.exists():
+            age = now.timestamp - prices_cache.stat().st_mtime
+            cache_valid = age < self.ttl
+        if use_caches and cache_valid:
+            narrate('metals-api prices are current:', prices_cache)
+            contents = prices_cache.read_text()
+            return Quantity.extract(contents)
+        else:
+            # download latest asset prices from metals-api.com
+            narrate('updating metals-api prices')
+            base_url = 'https://metals-api.com'
+            path = 'api/latest'
+            url = '/'.join([base_url, path])
+            if not self.api_key:
+                raise Error('Metals-API.com API access key not available.')
+            params = dict(
+                access_key = self.api_key,
+                base = 'USD',
+                symbols = ','.join(self.tokens.keys())
+            )
+            try:
+                r = requests.get(url, params=params, proxies=proxies)
+                if r.status_code != requests.codes.ok:
+                    r.raise_for_status()
+            except KeyboardInterrupt:
+                done()
+            except Exception as e:
+                # must catch all exceptions as requests.get() can generate 
+                # a variety based on how it fails, and if the exception is not 
+                # caught the thread dies.
+                raise Error('cannot access metals-api prices.', codicil=e)
+
+            try:
+                data = r.json()
+            except:
+                raise Error('metals-api price download was garbled.')
+            if not data['success']:
+                raise Error(
+                    'metals-api price download failed.',
+                    codicil = data['error']['info']
+                )
+            assert data['base'] == 'USD'
+            assert data['unit'] == 'per ounce'
+            assert data['rates']['USD'] == 1
+            prices = {
+                k: Dollars(1/float(v))
+                for k, v in data['rates'].items()
+                if k != 'USD'
+            }
+            if prices_cache:
+                contents = '\n'.join(
+                    '{} = {}'.format(k,v.fixed(prec='full'))
+                    for k,v in prices.items()
+                )
+                narrate('updating metal-api prices:', prices_cache)
+                prices_cache.write_text(contents)
+            return prices
+
+# TwelveData class {{{2
+class TwelveData(DataService):
+    NAME = 'twelve_data'
+
+    def get_prices(self):
+        if not self.tokens:
+            return {}
+
+        cache_valid = False
+        prices_cache = cache_dir / self.NAME
+        if prices_cache and prices_cache.exists():
+            age = now.timestamp - prices_cache.stat().st_mtime
+            cache_valid = age < self.ttl
+        if use_caches and cache_valid:
+            narrate('twelve-data prices are current:', prices_cache)
+            contents = prices_cache.read_text()
+            return Quantity.extract(contents)
+        else:
+            # download latest asset prices from metals-api.com
+            narrate('updating twelve-data prices')
+            url = 'https://api.twelvedata.com/time_series'
+            params = dict(
+                symbol = ','.join(self.tokens.keys()),
+                outputsize = 1,
+                interval = '1min',
+                apikey = self.api_key
+            )
+            try:
+                r = requests.get(url, params=params, proxies=proxies)
+                if r.status_code != requests.codes.ok:
+                    r.raise_for_status()
+            except KeyboardInterrupt:
+                done()
+            except Exception as e:
+                # must catch all exceptions as requests.get() can generate 
+                # a variety based on how it fails, and if the exception is not 
+                # caught the thread dies.
+                raise Error('cannot access twelve-data prices.', codicil=e)
+
+            try:
+                data = r.json()
+            except:
+                raise Error('twelve-data price download was garbled.')
+
+            # form of data changes based on whether you ask for one or many tokens
+            if len(self.tokens) == 1:
+                name = ''.join(self.tokens.keys())
+                prices = {name: Dollars(data['values'][0]['close'])}
+            else:
+                prices = {
+                    name: Dollars(info['values'][0]['close'])
+                    for name, info in data.items()
+                }
+
+            if prices_cache:
+                contents = '\n'.join(
+                    '{} = {}'.format(k,v.fixed(prec='full'))
+                    for k,v in prices.items()
+                )
+                narrate('updating twelve-data prices:', prices_cache)
+                prices_cache.write_text(contents)
+            return prices
+
+
 try:
     # Initialization {{{1
     settings_dir = Path(user_config_dir(prog_name))
-    cache_dir = user_cache_dir(prog_name)
-    mkdir(cache_dir)
+    cache_dir = Path(user_cache_dir(prog_name))
+    cache_dir.mkdir(parents=True, exist_ok=True)
     Quantity.set_prefs(prec='full', strip_radix=True)
-    inform = Inform(logfile=Path(cache_dir, 'log'))
+    inform = Inform(logfile=cache_dir / 'log')
     display.log = False   # do not log normal output
     estimated_value_overrides_file = None
     UnitConversion('s', 'sec second seconds')
@@ -364,6 +597,30 @@ try:
     UnitConversion('s', 'w week weeks', 7*24*60*60)
     UnitConversion('s', 'M month months', 30*24*60*60)
     UnitConversion('s', 'y year years', 365*24*60*60)
+
+    # define Voluptuous schema for config files {{{2
+    schema = dict(
+        aliases = {convert_to_str: convert_to_str},
+        asset_color = convert_to_color,
+        avendesora_fieldname = convert_to_str,
+        date_formats = convert_to_list,
+        debt_color = convert_to_color,
+        default_profile = convert_to_str,
+        max_account_value_age = convert_to_int,
+        screen_width = convert_to_int,
+        value_updated_subfieldname = convert_to_str,
+        estimated_value_overrides_file = convert_to_path,
+    )
+    schema.update({
+        service.NAME: dict(
+            api_key = convert_to_str,
+            api_key_account = convert_to_str,
+            ttl = convert_to_seconds,
+            tokens = convert_to_dict,
+        )
+        for service in DataService.services()
+    })
+    schema = voluptuous.Schema(schema)
 
     # Read generic settings {{{1
     config_filepath = Path(settings_dir, config_filename)
@@ -379,8 +636,14 @@ try:
             msg = f'{paths}: {msg}'
             raise Error(full_stop(msg), culprit=config_filepath)
         locals().update(settings)
+        primary_settings = settings
     else:
         narrate('not found:', config_filepath)
+        primary_settings = {}
+    tokens = {}
+    for service in DataService.services():
+        if service.NAME in settings and 'tokens' in settings[service.NAME]:
+            tokens.update(settings[service.NAME]['tokens'])
 
     # Read command line and process options {{{1
     available = set(p.stem for p in settings_dir.glob('*.prof'))
@@ -452,12 +715,13 @@ try:
             msg = f'{paths}: {msg}'
             raise Error(full_stop(msg), culprit=config_filepath)
         locals().update(settings)
+        profile_settings = settings
     else:
         narrate('not found:', config_filepath)
+        profile_settings = {}
 
     # Process the settings
     date_formats = [fmt.replace('_', ' ') for fmt in date_formats]
-
     asset_color = Color(asset_color, enable=Color.isTTY())
     debt_color = Color(debt_color, enable=Color.isTTY())
 
@@ -471,219 +735,17 @@ try:
     narrate('running avendesora')
     pw = PasswordGenerator()
 
-    # Get cryptocurrency prices {{{1
-    try:
-        prices = {}
-        coins = cryptocompare.get('tokens', [])
-        coins_time_to_live = cryptocompare.get('ttl', coins_time_to_live)
-        if coins:
-            cache_valid = False
-            cache_dir = Path(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            prices_cache = Path(cache_dir, coin_prices_filename)
-            if prices_cache and prices_cache.exists():
-                age = now.timestamp - prices_cache.stat().st_mtime
-                cache_valid = age < coins_time_to_live
-            if use_caches and cache_valid:
-                contents = prices_cache.read_text()
-                prices = Quantity.extract(contents)
-                narrate('Cryptocurrency prices are current:', prices_cache)
-            else:
-                narrate('Updating cryptocurrency prices.')
-                # download latest asset prices from cryptocompare.com
-                api_key = cryptocompare.get('api_key')
-                api_key_account = cryptocompare.get('api_key_account_field')
-                if not api_key and api_key_account:
-                    api_key = pw.get_value(api_key_account)
-                    # api_key is optional, providing it provides higher limits, 
-                    # but limits are generally not a problem for networth
-                params = cull(dict(
-                    fsyms = ','.join(coins),     # from symbols
-                    tsyms = 'USD',               # to symbols
-                    api_key = str(api_key),
-                ))
-                base_url = 'https://min-api.cryptocompare.com'
-                path = 'data/pricemulti'
-                url = '/'.join([base_url, path])
-                try:
-                    r = requests.get(url, params=params, proxies=proxies)
-                    if r.status_code != requests.codes.ok:
-                        r.raise_for_status()
-                except KeyboardInterrupt:
-                    done()
-                except Exception as e:
-                    # must catch all exceptions as requests.get() can generate 
-                    # a variety based on how it fails, and if the exception is not 
-                    # caught the thread dies.
-                    raise Error('Cannot access cryptocurrency prices.', codicil=e)
-
-                try:
-                    data = r.json()
-                except:
-                    raise Error('Cryptocurrency price download was garbled.')
-                prices = {k: Quantity(v['USD'], '$') for k, v in data.items()}
-
-                if prices_cache:
-                    contents = '\n'.join(
-                        '{} = {}'.format(k,v.fixed(prec='full'))
-                        for k,v in prices.items()
-                    )
-                    prices_cache.write_text(contents)
-                    narrate('Writing cryptocurrency prices to cache:', prices_cache)
-            prices['USD'] = Quantity(1, '$')
-    except Error as e:
-        e.report()
-    coin_prices = prices
-
-    # Get security prices {{{1
-    try:
-        prices = {}
-        securities = iexcloud.get('tokens', [])
-        securities_time_to_live = iexcloud.get('ttl', securities_time_to_live)
-        if securities:
-            import requests
-
-            cache_valid = False
-            cache_dir = Path(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            prices_cache = Path(cache_dir, security_prices_filename)
-            if prices_cache and prices_cache.exists():
-                age = now.timestamp - prices_cache.stat().st_mtime
-                cache_valid = age < securities_time_to_live
-            if use_caches and cache_valid:
-                contents = prices_cache.read_text()
-                prices = Quantity.extract(contents)
-                narrate('security prices are current:', prices_cache)
-            else:
-                narrate('updating security prices')
-                # download latest security prices from iexcloud.io
-                symbols = ','.join(securities)
-                test = False
-                base_url = 'https://cloud.iexapis.com'
-                path = 'stable/stock/market/batch'
-                url = '/'.join([base_url, path])
-                api_key = iexcloud.get('api_key')
-                api_key_account = iexcloud.get('api_key_account_field')
-                if not api_key and api_key_account:
-                    api_key = pw.get_value(api_key_account)
-                if not api_key:
-                    raise Error('IEXcloud.io API access key not available.')
-                params = dict(
-                    #types = 'price',  # apparently price is no longer available for free tier
-                    types = 'quote',
-                    symbols = symbols,
-                    token = str(api_key),
-                )
-                try:
-                    r = requests.get(url, params=params, proxies=proxies)
-                    if r.status_code != requests.codes.ok:
-                        r.raise_for_status()
-                except KeyboardInterrupt:
-                    done()
-                except Exception as e:
-                    # must catch all exceptions as requests.get() can generate 
-                    # a variety based on how it fails, and if the exception is not 
-                    # caught the thread dies.
-                    raise Error('cannot access security prices.', codicil=e)
-
-                try:
-                    data = r.json()
-                except:
-                    raise Error('security price download was garbled.')
-                try:
-                    prices = {
-                        s: Quantity(data[s]['quote']['latestPrice'], '$')
-                        for s in securities
-                    }
-                except KeyError as e:
-                    error('not available.', culprit=e)
-
-                if prices_cache:
-                    contents = '\n'.join(
-                        '{} = {}'.format(k,v.fixed(prec='full'))
-                        for k,v in prices.items()
-                    )
-                    prices_cache.write_text(contents)
-                    narrate('updating security prices:', prices_cache)
-    except Error as e:
-        e.report()
-    security_prices = prices
-
-    # Get precious metal prices {{{1
-    try:
-        prices = {}
-        metals = metals_api.get('tokens', [])
-        metals_time_to_live = metals_api.get('ttl', metals_time_to_live)
-        if metals:
-            import requests
-
-            cache_valid = False
-            cache_dir = Path(cache_dir)
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            prices_cache = Path(cache_dir, metal_prices_filename)
-            if prices_cache and prices_cache.exists():
-                age = now.timestamp - prices_cache.stat().st_mtime
-                cache_valid = age < metals_time_to_live
-            if use_caches and cache_valid:
-                contents = prices_cache.read_text()
-                prices = Quantity.extract(contents)
-                narrate('precious metal prices are current:', prices_cache)
-            else:
-                narrate('updating precious metal prices')
-                # download latest asset prices from metals-api.com
-                base_url = 'https://metals-api.com'
-                path = 'api/latest'
-                url = '/'.join([base_url, path])
-                api_key = metals_api.get('api_key')
-                api_key_account = metals_api.get('api_key_account_field')
-                if not api_key and api_key_account:
-                    api_key = pw.get_value(api_key_account)
-                if not api_key:
-                    raise Error('Metals-API.com API access key not available.')
-                params = dict(
-                    access_key = str(api_key),
-                    base = 'USD',
-                    symbols = ','.join(metals)
-                )
-                try:
-                    r = requests.get(url, params=params, proxies=proxies)
-                    if r.status_code != requests.codes.ok:
-                        r.raise_for_status()
-                except KeyboardInterrupt:
-                    done()
-                except Exception as e:
-                    # must catch all exceptions as requests.get() can generate 
-                    # a variety based on how it fails, and if the exception is not 
-                    # caught the thread dies.
-                    raise Error('cannot access precious metals prices.', codicil=e)
-
-                try:
-                    data = r.json()
-                except:
-                    raise Error('precious metals price download was garbled.')
-                if not data['success']:
-                    raise Error(
-                        'precious metals price download failed.',
-                        codicil = data['error']['info']
-                    )
-                assert data['base'] == 'USD'
-                assert data['unit'] == 'per ounce'
-                assert data['rates']['USD'] == 1
-                prices = {
-                    k: Quantity(1/float(v), '$/oz')
-                    for k, v in data['rates'].items()
-                    if k != 'USD'
-                }
-                if prices_cache:
-                    contents = '\n'.join(
-                        '{} = {}'.format(k,v.fixed(prec='full'))
-                        for k,v in prices.items()
-                    )
-                    prices_cache.write_text(contents)
-                    narrate('updating metal prices:', prices_cache)
-    except Error as e:
-        e.report()
-    metal_prices = prices
+    # Get prices from data services {{{1
+    prices = {}
+    for service in DataService.services():
+        service_settings = primary_settings.get(service.NAME)
+        if service_settings:
+            try:
+                prices.update(service(**service_settings).get_prices())
+            except Error as e:
+                e.terminate(culprit.service.NAME)
+        if service.NAME in profile_settings:
+            warn('must be specified in shared config file.', culprit=service.NAME)
 
     # Build account summaries {{{1
     totals_by_type = {}
