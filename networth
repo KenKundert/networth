@@ -317,6 +317,51 @@ class DataService:
             self.api_key = None
         self.ttl = ttl
 
+    def get_prices(self):
+        if not self.tokens:
+            return {}
+
+        cache_valid = False
+        prices_cache = cache_dir / self.NAME
+        if prices_cache and prices_cache.exists():
+            age = now.timestamp - prices_cache.stat().st_mtime
+            cache_valid = age < self.ttl
+        if use_caches and cache_valid:
+            narrate(f'{self.NAME} prices are current:', prices_cache)
+            contents = prices_cache.read_text()
+            return Quantity.extract(contents)
+        else:
+            # download latest asset prices from metals-api.com
+            narrate(f'updating {self.NAME} prices')
+            url, params = self.get_url()
+            try:
+                r = requests.get(url, params=params, proxies=proxies)
+                if r.status_code != requests.codes.ok:
+                    r.raise_for_status()
+            except KeyboardInterrupt:
+                done()
+            except Exception as e:
+                # must catch all exceptions as requests.get() can generate 
+                # a variety based on how it fails, and if the exception is not 
+                # caught the thread dies.
+                raise Error(f'cannot access {self.NAME} prices.', codicil=e)
+
+            # extract prices
+            try:
+                data = r.json()
+            except:
+                raise Error(f'{self.NAME} price download was garbled.')
+            prices = self.extract_prices(data)
+
+            if prices_cache:
+                contents = '\n'.join(
+                    '{} = {}'.format(k,v.fixed(prec='full'))
+                    for k,v in prices.items()
+                )
+                narrate(f'updating {self.NAME} prices:', prices_cache)
+                prices_cache.write_text(contents)
+            return prices
+
     @classmethod
     def services(cls):
         for sub in cls.__subclasses__():
@@ -333,252 +378,107 @@ class DataService:
 class CryptoCompare(DataService):
     NAME = 'cryptocompare'
 
-    def get_prices(self):
-        if not self.tokens:
-            return {}
+    def get_url(self):
+        params = cull(dict(
+            fsyms = ','.join(self.tokens.keys()),   # from symbols
+            tsyms = 'USD',                          # to symbols
+            api_key = self.api_key,
+        ))
+        base_url = 'https://min-api.cryptocompare.com'
+        path = 'data/pricemulti'
+        url = '/'.join([base_url, path])
+        return url, params
 
-        cache_valid = False
-        prices_cache = cache_dir / self.NAME
-        if prices_cache.exists():
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < self.ttl
-        if use_caches and cache_valid:
-            narrate('cryptocompare prices are current:', prices_cache)
-            contents = prices_cache.read_text()
-            return Quantity.extract(contents)
-        else:
-            # download latest asset prices from cryptocompare.com
-            narrate('Updating cryptocompare prices.')
-            params = cull(dict(
-                fsyms = ','.join(self.tokens.keys()),   # from symbols
-                tsyms = 'USD',                          # to symbols
-                api_key = self.api_key,
-            ))
-            base_url = 'https://min-api.cryptocompare.com'
-            path = 'data/pricemulti'
-            url = '/'.join([base_url, path])
-            try:
-                r = requests.get(url, params=params, proxies=proxies)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('Cannot access cryptocompare prices.', codicil=e)
+    def extract_prices(self, data):
+        return {k: Dollars(v['USD']) for k, v in data.items()}
 
-            try:
-                data = r.json()
-            except:
-                raise Error('cryptocompare price download was garbled.')
-            prices = {k: Dollars(v['USD']) for k, v in data.items()}
-
-            if prices_cache:
-                contents = '\n'.join(
-                    '{} = {}'.format(k,v.fixed(prec='full'))
-                    for k,v in prices.items()
-                )
-                prices_cache.write_text(contents)
-                narrate('Writing cryptocompare prices to cache:', prices_cache)
-            return prices
 
 # IexCloud class {{{2
 class IexCloud(DataService):
     NAME = 'iexcloud'
 
-    def get_prices(self):
-        if not self.tokens:
-            return {}
+    def get_url(self):
+        base_url = 'https://cloud.iexapis.com'
+        path = 'stable/stock/market/batch'
+        url = '/'.join([base_url, path])
+        if not self.api_key:
+            raise Error(f'{self.NAME} API access key not available.')
+        symbols = ','.join(self.tokens.keys())
+        params = dict(
+            #types = 'price',  # apparently price is no longer available for free tier
+            types = 'quote',
+            symbols = symbols,
+            token = self.api_key,
+        )
+        return url, params
 
-        cache_valid = False
-        prices_cache = cache_dir / self.NAME
-        if prices_cache and prices_cache.exists():
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < self.ttl
-        if use_caches and cache_valid:
-            narrate('iexcloud prices are current:', prices_cache)
-            contents = prices_cache.read_text()
-            return Quantity.extract(contents)
-        else:
-            # download latest iexcloud prices from iexcloud.io
-            narrate('updating iexcloud prices')
-            symbols = ','.join(self.tokens.keys())
-            base_url = 'https://cloud.iexapis.com'
-            path = 'stable/stock/market/batch'
-            url = '/'.join([base_url, path])
-            if not self.api_key:
-                raise Error('iexcloud API access key not available.')
-            params = dict(
-                #types = 'price',  # apparently price is no longer available for free tier
-                types = 'quote',
-                symbols = symbols,
-                token = self.api_key,
-            )
-            try:
-                r = requests.get(url, params=params, proxies=proxies)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('cannot access iexcloud prices.', codicil=e)
+    def extract_prices(self, data):
+        try:
+            return {
+                s: Dollars(data[s]['quote']['latestPrice'])
+                for s in self.tokens.keys()
+            }
+        except KeyError as e:
+            error('not available.', culprit=(self.NAME, e))
 
-            try:
-                data = r.json()
-            except:
-                raise Error('iexcloud price download was garbled.')
-            try:
-                prices = {
-                    s: Dollars(data[s]['quote']['latestPrice'])
-                    for s in self.tokens.keys()
-                }
-            except KeyError as e:
-                error('not available.', culprit=e)
-
-            if prices_cache:
-                contents = '\n'.join(
-                    '{} = {}'.format(k,v.fixed(prec='full'))
-                    for k,v in prices.items()
-                )
-                prices_cache.write_text(contents)
-                narrate('updating iexcloud prices:', prices_cache)
-            return prices
 
 # MetalsAPI class {{{2
 class MetalsAPI(DataService):
     NAME = 'metals_api'
 
-    def get_prices(self):
-        if not self.tokens:
-            return {}
+    def get_url(self):
+        base_url = 'https://metals-api.com'
+        path = 'api/latest'
+        url = '/'.join([base_url, path])
+        if not self.api_key:
+            raise Error('Metals-API.com API access key not available.')
+        params = dict(
+            access_key = self.api_key,
+            base = 'USD',
+            symbols = ','.join(self.tokens.keys())
+        )
+        return url, params
 
-        cache_valid = False
-        prices_cache = cache_dir / self.NAME
-        if prices_cache and prices_cache.exists():
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < self.ttl
-        if use_caches and cache_valid:
-            narrate('metals-api prices are current:', prices_cache)
-            contents = prices_cache.read_text()
-            return Quantity.extract(contents)
-        else:
-            # download latest asset prices from metals-api.com
-            narrate('updating metals-api prices')
-            base_url = 'https://metals-api.com'
-            path = 'api/latest'
-            url = '/'.join([base_url, path])
-            if not self.api_key:
-                raise Error('Metals-API.com API access key not available.')
-            params = dict(
-                access_key = self.api_key,
-                base = 'USD',
-                symbols = ','.join(self.tokens.keys())
+    def extract_prices(self, data):
+        if not data['success']:
+            raise Error(
+                'metals-api price download failed.',
+                codicil = data['error']['info']
             )
-            try:
-                r = requests.get(url, params=params, proxies=proxies)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('cannot access metals-api prices.', codicil=e)
+        assert data['base'] == 'USD'
+        assert data['unit'] == 'per ounce'
+        assert data['rates']['USD'] == 1
+        return {
+            k: Dollars(1/float(v))
+            for k, v in data['rates'].items()
+            if k != 'USD'
+        }
 
-            try:
-                data = r.json()
-            except:
-                raise Error('metals-api price download was garbled.')
-            if not data['success']:
-                raise Error(
-                    'metals-api price download failed.',
-                    codicil = data['error']['info']
-                )
-            assert data['base'] == 'USD'
-            assert data['unit'] == 'per ounce'
-            assert data['rates']['USD'] == 1
-            prices = {
-                k: Dollars(1/float(v))
-                for k, v in data['rates'].items()
-                if k != 'USD'
-            }
-            if prices_cache:
-                contents = '\n'.join(
-                    '{} = {}'.format(k,v.fixed(prec='full'))
-                    for k,v in prices.items()
-                )
-                narrate('updating metal-api prices:', prices_cache)
-                prices_cache.write_text(contents)
-            return prices
 
 # TwelveData class {{{2
 class TwelveData(DataService):
     NAME = 'twelve_data'
 
-    def get_prices(self):
-        if not self.tokens:
-            return {}
+    def get_url(self):
+        url = 'https://api.twelvedata.com/time_series'
+        params = dict(
+            symbol = ','.join(self.tokens.keys()),
+            outputsize = 1,
+            interval = '1min',
+            apikey = self.api_key
+        )
+        return url, params
 
-        cache_valid = False
-        prices_cache = cache_dir / self.NAME
-        if prices_cache and prices_cache.exists():
-            age = now.timestamp - prices_cache.stat().st_mtime
-            cache_valid = age < self.ttl
-        if use_caches and cache_valid:
-            narrate('twelve-data prices are current:', prices_cache)
-            contents = prices_cache.read_text()
-            return Quantity.extract(contents)
+    def extract_prices(self, data):
+        # form of data changes based on whether you ask for one or many tokens
+        if len(self.tokens) == 1:
+            name = ''.join(self.tokens.keys())
+            return {name: Dollars(data['values'][0]['close'])}
         else:
-            # download latest asset prices from metals-api.com
-            narrate('updating twelve-data prices')
-            url = 'https://api.twelvedata.com/time_series'
-            params = dict(
-                symbol = ','.join(self.tokens.keys()),
-                outputsize = 1,
-                interval = '1min',
-                apikey = self.api_key
-            )
-            try:
-                r = requests.get(url, params=params, proxies=proxies)
-                if r.status_code != requests.codes.ok:
-                    r.raise_for_status()
-            except KeyboardInterrupt:
-                done()
-            except Exception as e:
-                # must catch all exceptions as requests.get() can generate 
-                # a variety based on how it fails, and if the exception is not 
-                # caught the thread dies.
-                raise Error('cannot access twelve-data prices.', codicil=e)
-
-            try:
-                data = r.json()
-            except:
-                raise Error('twelve-data price download was garbled.')
-
-            # form of data changes based on whether you ask for one or many tokens
-            if len(self.tokens) == 1:
-                name = ''.join(self.tokens.keys())
-                prices = {name: Dollars(data['values'][0]['close'])}
-            else:
-                prices = {
-                    name: Dollars(info['values'][0]['close'])
-                    for name, info in data.items()
-                }
-
-            if prices_cache:
-                contents = '\n'.join(
-                    '{} = {}'.format(k,v.fixed(prec='full'))
-                    for k,v in prices.items()
-                )
-                narrate('updating twelve-data prices:', prices_cache)
-                prices_cache.write_text(contents)
-            return prices
+            return {
+                name: Dollars(info['values'][0]['close'])
+                for name, info in data.items()
+            }
 
 
 try:
