@@ -481,8 +481,8 @@ class TwelveData(DataService):
             }
 
 
+# Initialization {{{1
 try:
-    # Initialization {{{1
     settings_dir = Path(user_config_dir(prog_name))
     cache_dir = Path(user_cache_dir(prog_name))
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -586,8 +586,8 @@ try:
         )
     if profile not in available:
         fatal(
-            'unknown profile.', choose_from, template=('{} {}', '{}'), 
-            culprit=profile
+            'unknown profile.', choose_from, template=('{} {}', '{}'),
+            culprit = profile
         )
     insecure = cmdline['--insecure']
     if insecure:
@@ -643,7 +643,7 @@ try:
             try:
                 prices.update(service(**service_settings).get_prices())
             except Error as e:
-                e.terminate(culprit.service.NAME)
+                e.terminate(self.service.NAME)
         if service.NAME in profile_settings:
             warn('must be specified in shared config file.', culprit=service.NAME)
 
