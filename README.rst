@@ -8,6 +8,8 @@ Networth: Summarize Your Net Worth
 generate a summary of your networth. *Networth* reads *estimated_value* fields 
 from *Avendesora* accounts and summarizes the result.  It is often used with, 
 and shares fields with, `PostMortem <https://github.com/KenKundert/postmortem>`_.
+Works with data services to download up-to-date prices for securities and 
+cryptocurrencies.
 
 Please report all bugs and suggestions to networth@nurdletech.com
 
@@ -39,7 +41,7 @@ In addition, the following settings are available:
 
 avendesora fieldname:
     The name of the *Avendesora* account field that contains the networth 
-    information.
+    information.  Typically *estimated_value*.
 
 value updated subfieldname:
     The name of the subfield of *estimated_value* that contains the date the 
@@ -47,7 +49,7 @@ value updated subfieldname:
 
 max account value age:
     Number of days. Values that are older than this are called out as being 
-    stale.
+    stale. Default is 120 days.
 
 date formats:
     The list of allowed date formats. May be specified as a list or as a string
@@ -56,8 +58,6 @@ date formats:
     confused as more than one format. For example a format of 'MMMM YYYY' would 
     be represented as 'MMMM_YYYY'. The formats allowed are those supported by 
     Arrow.
-
-    May also be a list of strings, where each represents a valid date format.  
 
     By default the following formats are accepted: 'MMMM YYYY', 'MMM YYYY', 
     'YYYY-M-D', and 'YYMMDD'. So the following dates would be accepted: 'January 
@@ -107,15 +107,27 @@ cryptocompare:
 iexcloud:
     A dictionary containing information about security prices that are to be 
     downloaded from iexcloud.io.  This dictionary takes the same fields as 
-    *cryptocompare*.
+    *cryptocompare*.  An API key is required.
 
     To avoid caching issues it is recommended that *iexcloud* files be placed in 
     the shared *config* file if multiple profiles need it.
 
+twelve data:
+    A dictionary containing information about security prices that are to be 
+    downloaded from twelvedata.com.  This dictionary takes the same fields as 
+    *cryptocompare*.  An API key is required.
+
+    To avoid caching issues it is recommended that *twelvedata* files be placed 
+    in the shared *config* file if multiple profiles need it.
+
+    *Twelve Data* provides real time values, but have very low limits unless you 
+    get an expensive subscription.  If you do not have a subscription, it is 
+    recommended that you limit the number of tokens to 8 or less.
+
 metals api:
     A dictionary containing information about precious metals prices that are to 
     be downloaded from metals-api.com.  This dictionary takes the same fields as 
-    *cryptocompare*.
+    *cryptocompare*.  An API key is required.
 
     To avoid caching issues it is recommended that *metals* files be placed in 
     the shared *config* file if multiple profiles need it.
@@ -143,13 +155,6 @@ Here is an example *config* file::
     # bar settings
     screen width: 110
 
-Here is a example profile file::
-
-    # account aliases
-    aliases:
-        quickenloans: mortgage
-        wellsfargo: wells fargo
-
     # cryptocurrency prices
     cryptocompare:
         tokens:
@@ -164,6 +169,22 @@ Here is a example profile file::
             GOOG: equities
             AMZN: equities
             GBTC: cryptocurrency
+
+Here is a example profile file::
+
+    # account aliases
+    aliases:
+        quickenloans: mortgage
+        wellsfargo: wells fargo
+
+
+Here is a example estimated value overrides file::
+
+    chase:
+        updated: February 2021
+        cash:
+            > $4,425.71 +       # checking
+            > $1,896.26         # savings
 
 
 Estimated Values
@@ -306,6 +327,7 @@ Releases
     | Version: 0.8.6
     | Released: 2021-02-11
 
+**1.0 (2020-02-13)**:
     - Add *estimated value overrides file* setting.
     - Add --details option
     - Add --write-data option
