@@ -48,6 +48,7 @@ try:
     settings_dir = Path(user_config_dir(prog_name))
     Quantity.set_prefs(prec='full', strip_radix=True)
 
+
     # Read generic settings {{{1
     config_filepath = Path(settings_dir, config_filename)
     if config_filepath.exists():
@@ -140,7 +141,8 @@ try:
                 waves[(name, 'ordinate')],
                 linestyle='-', marker=None
             )
-            trace.set_label(name)
+            last = waves[(name, 'ordinate')][-1]
+            trace.set_label(f'{name}  {last.render(prec=2)}')
         except KeyError as e:
             error('unknown.', culprit=e.args[0][0])
     if trace:

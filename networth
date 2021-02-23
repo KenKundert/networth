@@ -643,7 +643,7 @@ try:
             try:
                 prices.update(service(**service_settings).get_prices())
             except Error as e:
-                e.terminate(self.service.NAME)
+                e.terminate(service.NAME)
         if service.NAME in profile_settings:
             warn('must be specified in shared config file.', culprit=service.NAME)
 
