@@ -81,6 +81,8 @@ try:
 
     # Read data file {{{1
     data_filepath = Path(user_data_dir(prog_name), profile + '.nt')
+    updated = arrow.get(data_filepath.stat().st_mtime)
+    display(f'Data updated {updated.humanize()}.')
     data = nt.load(data_filepath)
     waves = {}
     accounts = set()
