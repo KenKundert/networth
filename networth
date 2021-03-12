@@ -643,7 +643,7 @@ try:
             try:
                 prices.update(service(**service_settings).get_prices())
             except Error as e:
-                e.terminate(service.NAME)
+                e.terminate(culprit=service.NAME)
         if service.NAME in profile_settings:
             warn('must be specified in shared config file.', culprit=service.NAME)
 
@@ -808,21 +808,11 @@ try:
             ),
             remove = None,
         )
-        if coin_prices:
-            display('Cryptocurrency Coin Prices:')
-            for k, v in coin_prices.items():
+        if prices:
+            display('Prices:')
+            for k, v in prices.items():
                 if k != 'USD':
                     display(k, v, raw_totals.get(k), **fmt)
-            display()
-        if security_prices:
-            display('Security Prices:')
-            for k, v in security_prices.items():
-                display(k, v, raw_totals.get(k), **fmt)
-            display()
-        if metal_prices:
-            display('Precious Metal Prices:')
-            for k, v in metal_prices.items():
-                display(k, v, raw_totals.get(k), **fmt)
             display()
 
     # Summarize by account {{{1
