@@ -327,11 +327,14 @@ Releases
     | Version: 1.0.2
     | Released: 2021-03-11
 
-**1.0 (2020-02-13)**:
+**1.1 (2021-03-11)**:
+    - clean up and minor refinements.
+
+**1.0 (2021-02-13)**:
     - Add *estimated value overrides file* setting.
-    - Add --details option
-    - Add --write-data option
-    - Add plot-networth command
+    - Add --details option.
+    - Add --write-data option.
+    - Add *plot-networth* command.
     - Allow categories to be specified for downloaded token prices.
 
 **0.8 (2020-10-10)**:
@@ -344,7 +347,7 @@ Releases
 
 **0.6 (2020-01-08)**:
     - Added --prices and --clear-cache command line options.
-    - Support using a proxy
+    - Support using a proxy.
 
 **0.5 (2019-07-18)**:
 
@@ -352,14 +355,14 @@ Releases
     - Convert to using new IEXcloud API for downloading security prices.
 
 **0.3 (2019-04-20)**:
-    - Allow arbitrary date format in mortgages
-    - Improve error reporting
-    - Change the sign of the principal in mortgages
+    - Allow arbitrary date format in mortgages.
+    - Improve error reporting.
+    - Change the sign of the principal in mortgages.
 
 **0.1 (2019-03-23)**:
-    - Initial release
-    - Add mortgage balance calculations
+    - Initial release.
+    - Add mortgage balance calculations.
 
 **0.0 (2019-01-31)**:
-    - Initial version
+    - Initial version.
 
