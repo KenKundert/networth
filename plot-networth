@@ -35,6 +35,10 @@ try:
     import matplotlib.dates as mdates
     from matplotlib.ticker import FuncFormatter, NullFormatter
 
+    # stop matplotlib from issuing spurious warnings
+    import warnings
+    warnings.filterwarnings("ignore")
+
     __version__ = "0.8.1"
     __released__ = "2020-11-17"
 

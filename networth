@@ -210,7 +210,7 @@ def colored_bar(value, width):
 
 # resolve_value {{{2
 # Evaluate & convert (expression, coin, security, mortgage) to final value.
-def resolve_value(key, value):
+def resolve_value(key, value, account_name):
     try:
         value = evaluate(rm_commas(value))
     except Exception:
@@ -221,6 +221,10 @@ def resolve_value(key, value):
 
     if key in tokens:
         if key in prices:
+            if value:
+                accounts = raw_accounts.get(key, [])
+                accounts.append(f'{Quantity(value):p} in {account_name}')
+                raw_accounts[key] = accounts
             raw_totals[key] = raw_totals.get(key, Quantity(0, key)).add(value)
             value = Quantity(
                 float(value)*prices[key],
@@ -597,6 +601,7 @@ try:
         proxies = None
     show_prices = cmdline['--prices']
     use_caches = not cmdline['--clear-cache']
+    show_all = cmdline['--all']
     show_details = cmdline['--details']
     write_data = cmdline['--write-data']
     inform.quiet = write_data
@@ -651,6 +656,7 @@ try:
     totals_by_type = {}
     totals_by_account = {}
     raw_totals = {}
+    raw_accounts = {}
     accounts = []
     total_assets = Quantity(0, '$')
     total_debt = Quantity(0, '$')
@@ -698,7 +704,7 @@ try:
                         continue
 
                     orig_key = key
-                    key, value = resolve_value(key, value)
+                    key, value = resolve_value(key, value, account_name)
                     if value.units == '$':
                         total = total.add(value)
                     else:
@@ -738,7 +744,7 @@ try:
                 #template=('{:7q} {}', '{:7q}'), remove=(None,'') ksk
                 template=('{:10,.0p} {}', '{:10,.0p}'), remove=(None,'')
             )
-            if total or cmdline['--all']:
+            if total or show_all:
                 accounts.append((account_name, total, summary, details))
 
             # sum assets and debts {{{3
@@ -761,7 +767,7 @@ try:
         for orig_key, value in extras.items():
             # sum the data {{{3
             odd_units = False
-            key, value = resolve_value(orig_key, value)
+            key, value = resolve_value(orig_key, value, account_name)
             if value.units == '$':
                 total = total.add(value)
             else:
@@ -810,9 +816,21 @@ try:
         )
         if prices:
             display('Prices:')
-            for k, v in prices.items():
+            #for k, v in prices.items():
+            for k in sorted(prices):
+                v = prices[k]
                 if k != 'USD':
+                    raw_total = raw_totals.get(k)
+                    if not raw_total:
+                        if show_all:
+                            raw_total = None
+                        else:
+                            continue
                     display(k, v, raw_totals.get(k), **fmt)
+                    if show_details and k in raw_accounts:
+                        if len(raw_accounts[k]) > 1:
+                            for each in raw_accounts[k]:
+                                display((3+15+1)*' ', each)
             display()
 
     # Summarize by account {{{1
@@ -821,9 +839,10 @@ try:
         display(f'{name:>{width+2}s}: {summary}')
         totals_by_account[name] = total
         if show_details and details:
-            for key in details:
-                value = details[key]
-                display(f'{"":>{width+2}s}  {value:10,.0p} {key}')
+            if len(details) > 1:
+                for key in details:
+                    value = details[key]
+                    display(f'{"":>{width+2}s}  {value:10,.0p} {key}')
 
     # Summarize by investment type {{{1
     display('\nAssets By Type:')
