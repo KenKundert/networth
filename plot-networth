@@ -154,6 +154,7 @@ try:
     if trace:
         formatter = FuncFormatter(lambda v, p: Quantity(v, '$'))
         axis.yaxis.set_major_formatter(formatter)
+        figure.autofmt_xdate()
         axis.legend()
         #axis.set_title('Worth')
         if svg_file:
