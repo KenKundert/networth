@@ -328,7 +328,7 @@ class DataService:
         cache_valid = False
         prices_cache = cache_dir / self.NAME
         if prices_cache and prices_cache.exists():
-            age = now.timestamp - prices_cache.stat().st_mtime
+            age = now.timestamp() - prices_cache.stat().st_mtime
             cache_valid = age < self.ttl
         if use_caches and cache_valid:
             narrate(f'{self.NAME} prices are current:', prices_cache)
