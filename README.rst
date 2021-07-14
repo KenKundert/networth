@@ -1,6 +1,16 @@
 Networth: Summarize Your Net Worth
 ==================================
 
+.. image:: https://pepy.tech/badge/networth/month
+    :target: https://pepy.tech/project/networth
+
+.. image:: https://img.shields.io/pypi/v/networth.svg
+    :target: https://pypi.python.org/pypi/networth
+
+.. image:: https://img.shields.io/pypi/pyversions/networth.svg
+    :target: https://pypi.python.org/pypi/networth/
+
+
 | Version: 1.1.1
 | Released: 2021-06-13
 
