@@ -16,7 +16,6 @@ setup(
     long_description_content_type = 'text/x-rst',
     url = 'https://github.com/kenkundert/networth',
     download_url = 'https://github.com/kenkundert/networth/tarball/master',
-    license = 'GPLv3+',
     scripts = 'networth plot-networth'.split(),
     install_requires = [
         'appdirs',
@@ -34,6 +33,8 @@ setup(
         'voluptuous',
     ],
     python_requires='>=3.6',
+    zip_safe = True,
+    license = 'GPLv3+',
     keywords = 'networth'.split(),
     classifiers = [
         'Development Status :: 5 - Production/Stable',
