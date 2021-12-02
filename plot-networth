@@ -155,8 +155,12 @@ try:
         formatter = FuncFormatter(lambda v, p: Quantity(v, '$'))
         axis.yaxis.set_major_formatter(formatter)
         figure.autofmt_xdate()
-        axis.legend()
+        axis.legend(loc='lower left')
         #axis.set_title('Worth')
+        axis.grid(which='major', color='#DDDDDD', linewidth=0.8)
+        axis.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
+        axis.minorticks_on()
+
         if svg_file:
             plt.savefig(svg_file)
         else:

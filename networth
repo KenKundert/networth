@@ -223,7 +223,10 @@ def resolve_value(key, value, account_name):
         if key in prices:
             if value:
                 accounts = raw_accounts.get(key, [])
-                accounts.append(f'{Quantity(value):p} in {account_name}')
+                try:
+                    accounts.append(f'{Quantity(value):p} in {account_name}')
+                except InvalidNumber as e:
+                    raise Error(e, culprit=account_name)
                 raw_accounts[key] = accounts
             raw_totals[key] = raw_totals.get(key, Quantity(0, key)).add(value)
             value = Quantity(
