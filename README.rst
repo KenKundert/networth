@@ -1,5 +1,5 @@
-Networth: Summarize Your Net Worth
-==================================
+Networth — Summarize Your Net Worth
+===================================
 
 .. image:: https://pepy.tech/badge/networth/month
     :target: https://pepy.tech/project/networth
