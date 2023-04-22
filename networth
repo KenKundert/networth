@@ -190,6 +190,8 @@ def convert_to_int(v):
 
 # interpret dict value {{{2
 def convert_to_dict(d):
+    if not d:
+        d = {}
     new = {}
     for k, v in d.items():
         if not is_str(k) or not is_str(v):
@@ -464,18 +466,47 @@ class MetalsAPI(DataService):
         return url, params
 
     def extract_prices(self, data):
+        data = data['data']
         if not data['success']:
             raise Error(
                 'metals-api price download failed.',
                 codicil = data['error']['info']
             )
+
         assert data['base'] == 'USD'
-        assert data['unit'] == 'per ounce'
+        # assert data['unit'] == 'per ounce'
         assert data['rates']['USD'] == 1
         return {
             k: Dollars(1/float(v))
             for k, v in data['rates'].items()
             if k != 'USD'
+        }
+
+
+# MetalsLive class {{{2
+class MetalsLive(DataService):
+    NAME = 'metals_live'
+
+    def get_url(self):
+        base_url = 'http://api.metals.live'
+        path = 'v1/spot'
+            # returns current price of gold, silver, platinum, palladium
+        url = '/'.join([base_url, path])
+        params = dict(
+            api_key = "<api key>",
+        )
+        params = None  # params not needed for free tier
+        return url, params
+
+    def extract_prices(self, data):
+        map_names = dict(
+            gold='XAU', silver='XAG', platinum='XPT', palladium='XPD'
+        )
+        return {
+            map_names[k]: Dollars(v)
+            for each in data
+            for k, v in each.items()
+            if k != 'timestamp'
         }
 
 
@@ -490,6 +521,32 @@ class TwelveData(DataService):
             outputsize = 1,
             interval = '1min',
             apikey = self.api_key
+        )
+        return url, params
+
+    def extract_prices(self, data):
+        # form of data changes based on whether you ask for one or many tokens
+        if len(self.tokens) == 1:
+            name = ''.join(self.tokens.keys())
+            return {name: Dollars(data['values'][0]['close'])}
+        else:
+            return {
+                name: Dollars(info['values'][0]['close'])
+                for name, info in data.items()
+            }
+
+
+# Nasdac class {{{2
+class Nasdac(DataService):
+    NAME = 'nasdaq'
+    # This one was never completed. Do not use.
+
+    def get_url(self):
+        # see https://blog.data.nasdaq.com/api-for-commodity-data
+        url = 'https://data.nasdaq.com/api/v3/datasets/LBMA/GOLD'
+        # url = 'https://data.nasdaq.com/api/v3/datasets/WGC/GOLD_DAILY_USD'
+        params = dict(
+            api_key = self.api_key
         )
         return url, params
 

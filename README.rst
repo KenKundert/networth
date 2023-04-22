@@ -102,7 +102,8 @@ cryptocompare:
 
     ttl:
         Cache time to live.  If the cache is older than this time, it is 
-        refreshed.  Here are example times: 600s, 10m, 6h, 1d.
+        refreshed.  Here are example times: 600s, 10m, 6h, 1d.  The default is 
+        10m.
 
     api key:
         The coin prices are downloaded from cryptocompare.com. Specifying the 
@@ -141,6 +142,13 @@ metals api:
 
     To avoid caching issues it is recommended that *metals* files be placed in 
     the shared *config* file if multiple profiles need it.
+
+    Metals API has dropped their free tier.
+
+metals live:
+    A dictionary containing information about precious metals prices that are to 
+    be downloaded from metals-api.com.  This dictionary only requires the 
+    *tokens* field. An API key is not required.
 
 estimated value overrides file:
     A path to a file of *estimated_value* overrides. Give as a NestedText file 
