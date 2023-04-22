@@ -17,6 +17,7 @@ Options:
                                         rather than display it
 
 {available_profiles}
+Use --list to show the names of the things that can be plotted.  The default is net.
 """
 
 try:
@@ -25,7 +26,8 @@ try:
     import nestedtext as nt
     from docopt import docopt
     from inform import (
-        columns, conjoin, display, done, error, fatal, os_error, terminate, Error
+        columns, conjoin, display, done, error, fatal, os_error, terminate,
+        title_case, Error
     )
     import arrow
     from pathlib import Path
@@ -60,11 +62,12 @@ try:
         settings = nt.loads(settings)
 
     # Read command line and process options {{{1
+    default_profile = settings.get('default profile', default_profile)
     available = set(p.stem for p in settings_dir.glob('*.prof'))
     if len(available) > 1:
-        choose_from = f'Choose from {conjoin(sorted(available))}.'
+        choose_from = f'Choose profile from {conjoin(sorted(available))}.'
         default = f'The default is {default_profile}.'
-        available_profiles = f'{choose_from} {default}\n'
+        available_profiles = f'{choose_from}  {default}'
     else:
         available_profiles = ''
 
@@ -156,7 +159,7 @@ try:
         axis.yaxis.set_major_formatter(formatter)
         figure.autofmt_xdate()
         axis.legend(loc='lower left')
-        #axis.set_title('Worth')
+        axis.set_title(f'{title_case(profile)}')
         axis.grid(which='major', color='#DDDDDD', linewidth=0.8)
         axis.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
         axis.minorticks_on()
