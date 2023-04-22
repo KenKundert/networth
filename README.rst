@@ -11,8 +11,8 @@ Networth — Summarize Your Net Worth
     :target: https://pypi.python.org/pypi/networth/
 
 
-| Version: 1.1.1
-| Released: 2021-06-13
+| Version: 1.1.2
+| Released: 2023-04-22
 
 *Networth* works with `Avendesora <https://avendesora.readthedocs.io>`_ to 
 generate a summary of your networth. *Networth* reads *estimated_value* fields 
@@ -342,8 +342,8 @@ You can get a list of the values you can plot using::
 Releases
 --------
 **Latest Development Version**:
-    | Version: 1.1.1
-    | Released: 2021-06-13
+    | Version: 1.1.2
+    | Released: 2023-04-22
 
 **1.1 (2021-03-11)**:
     - clean up and minor refinements.
