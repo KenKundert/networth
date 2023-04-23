@@ -345,6 +345,9 @@ Releases
     | Version: 1.1.2
     | Released: 2023-04-22
 
+**1.2 (2023-04-22)**:
+    - add metals.live data service
+
 **1.1 (2021-03-11)**:
     - clean up and minor refinements.
 
