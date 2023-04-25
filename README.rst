@@ -345,8 +345,10 @@ Releases
     | Version: 1.2.1
     | Released: 2023-04-25
 
+    - update IEX Cloud interface.
+
 **1.2 (2023-04-22)**:
-    - add metals.live data service
+    - add metals.live data service.
 
 **1.1 (2021-03-11)**:
     - clean up and minor refinements.
