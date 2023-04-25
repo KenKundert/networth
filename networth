@@ -424,24 +424,28 @@ class IexCloud(DataService):
     NAME = 'iexcloud'
 
     def get_url(self):
-        base_url = 'https://cloud.iexapis.com'
-        path = 'stable/stock/market/batch'
+        symbols = ','.join(self.tokens.keys())
+
+        base_url = 'https://api.iex.cloud'
+        path = f"v1/data/core/quote/{symbols}"
+
         url = '/'.join([base_url, path])
         if not self.api_key:
             raise Error(f'{self.NAME} API access key not available.')
-        symbols = ','.join(self.tokens.keys())
         params = dict(
-            #types = 'price',  # apparently price is no longer available for free tier
-            types = 'quote',
-            symbols = symbols,
             token = self.api_key,
         )
+        debug(url, params)
         return url, params
 
     def extract_prices(self, data):
+        debug(data)
+        data = {s: v for s, v in zip(self.tokens.keys(), data)}
+        debug(data)
+
         try:
             return {
-                s: Dollars(data[s]['quote']['latestPrice'])
+                s: Dollars(data[s]['iexRealtimePrice'])
                 for s in self.tokens.keys()
             }
         except KeyError as e:
