@@ -435,13 +435,10 @@ class IexCloud(DataService):
         params = dict(
             token = self.api_key,
         )
-        debug(url, params)
         return url, params
 
     def extract_prices(self, data):
-        debug(data)
         data = {s: v for s, v in zip(self.tokens.keys(), data)}
-        debug(data)
 
         try:
             return {
@@ -450,6 +447,8 @@ class IexCloud(DataService):
             }
         except KeyError as e:
             error('not available.', culprit=(self.NAME, e))
+        except InvalidNumber as e:
+            error(e, culprit=self.NAME)
 
 
 # MetalsAPI class {{{2
@@ -541,7 +540,7 @@ class TwelveData(DataService):
 
 
 # Nasdac class {{{2
-class Nasdac(DataService):
+class Nasdaq(DataService):
     NAME = 'nasdaq'
     # This one was never completed. Do not use.
 
@@ -556,6 +555,50 @@ class Nasdac(DataService):
 
     def extract_prices(self, data):
         # form of data changes based on whether you ask for one or many tokens
+        if len(self.tokens) == 1:
+            name = ''.join(self.tokens.keys())
+            return {name: Dollars(data['values'][0]['close'])}
+        else:
+            return {
+                name: Dollars(info['values'][0]['close'])
+                for name, info in data.items()
+            }
+
+
+# AlphaVantage class {{{2
+class AlphaVantage(DataService):
+
+    NAME = 'alpha'
+
+    def get_url(self):
+        # looks like you can get only one quote at a time
+        # crypto_url = 'https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=BTC&to_currency=USD&apikey=KK5K7ISCW6KI7V7R'
+        # stock_url = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=KK5K7ISCW6KI7V7R'
+        stock_url = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE'
+        params = dict(
+            symbol = ','.join(self.tokens.keys()),
+            datatype='json',
+            apikey = self.api_key
+        )
+        return url, params
+
+    def extract_prices(self, data):
+        # form of data changes based on whether you ask for one or many tokens
+        # {
+        #     "Global Quote": {
+        #         "01. symbol": "IBM",
+        #         "02. open": "134.3600",
+        #         "03. high": "136.1000",
+        #         "04. low": "134.1700",
+        #         "05. price": "135.3000",
+        #         "06. volume": "3981748",
+        #         "07. latest trading day": "2023-06-09",
+        #         "08. previous close": "134.4100",
+        #         "09. change": "0.8900",
+        #         "10. change percent": "0.6622%"
+        #     }
+        # }
+
         if len(self.tokens) == 1:
             name = ''.join(self.tokens.keys())
             return {name: Dollars(data['values'][0]['close'])}
@@ -729,7 +772,7 @@ try:
             try:
                 prices.update(service(**service_settings).get_prices())
             except Error as e:
-                e.terminate(culprit=service.NAME)
+                e.report(culprit=service.NAME)
         if service.NAME in profile_settings:
             warn('must be specified in shared config file.', culprit=service.NAME)
 
