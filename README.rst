@@ -28,7 +28,7 @@ Getting Started
 
 You download and install *Networth* with::
 
-    pip3 install --user networth
+    pip3 install networth
 
 Once installed, you will need at least two configuration files. The 
 configuration files are `NestedText <https://nestedtext.readthedocs.io>`_.  The 

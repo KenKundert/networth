@@ -507,9 +507,34 @@ class MetalsLive(DataService):
         )
         return {
             map_names[k]: Dollars(v)
-            for each in data
+            for each in data['metals']
             for k, v in each.items()
-            if k != 'timestamp'
+        }
+
+
+# MetalsDev class {{{2
+class MetalsDev(DataService):
+    NAME = 'metals_dev'
+
+    def get_url(self):
+        base_url = 'http://api.metals.dev'
+        path = 'v1/latest'
+            # returns current price of gold, silver, platinum, palladium
+        url = '/'.join([base_url, path])
+        if not self.api_key:
+            raise Error('Metals.dev API access key not available.')
+        params = dict(
+            api_key = self.api_key,
+        )
+        return url, params
+
+    def extract_prices(self, data):
+        map_names = dict(
+            gold='XAU', silver='XAG', platinum='XPT', palladium='XPD'
+        )
+        return {
+            map_names[k]: Dollars(v)
+            for k, v in data['metals'].items() if k in map_names.keys()
         }
 
 
@@ -1008,14 +1033,22 @@ try:
         data_dir = Path(user_data_dir(prog_name))
         mkdir(data_dir)
         data_path = to_path(data_dir, profile).with_suffix('.nt')
-        with Quantity.prefs(form = 'fixed', prec='full'):
-            data = nt.load(data_path, top=dict) if data_path.exists() else {}
-            data[now.isoformat()] = {
-                'by account': totals_by_account,
-                'by type': totals_by_type,
-                'by gross': totals_by_gross,
-            }
-            nt.dump(data, data_path)
+
+        def render_quantity(arg):
+            if arg.units == '$':
+                prec = 0 if abs(arg) >= 1000 else 2
+                arg = arg.fixed(prec=prec, show_commas=True)
+            else:
+                arg = arg.fixed(prec='full', show_commas=True)
+            return arg
+
+        data = nt.load(data_path, top=dict) if data_path.exists() else {}
+        data[now.isoformat()] = {
+            'by account': totals_by_account,
+            'by type': totals_by_type,
+            'by gross': totals_by_gross,
+        }
+        nt.dump(data, data_path, converters={Quantity: render_quantity})
 
 # Handle exceptions {{{1
 except OSError as e:

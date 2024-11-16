@@ -169,7 +169,7 @@ try:
         else:
             plt.show()
     else:
-        error('nothing to plot.')
+        error('nothing to plot. Did you specify a profile without -p?')
 
 # Handle exceptions {{{1
 except OSError as e:
